@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="ca">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>CB Binissalem — Temp 25-26 | Doble Equip · Dashboard (Local V-B)</title>
+
+  <!-- TailwindCSS -->
+  <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.10/lib/index.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- SheetJS (Excel/CSV) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Exportació a PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <style>
+    html,
+    body {
+      background: #0b0f1a;
+      color: #e6e7eb;
+    }
+
+    .card {
+      background: #12182a;
+      border: 1px solid #1f2a44;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+    }
+
+    .accent {
+      background: linear-gradient(135deg, #36c2cf, #7c5cff);
+    }
+
+    .chip {
+      background: #0f1627;
+      border: 1px solid #223055;
+    }
+
+    table thead th {
+      position: sticky;
+      top: 0;
+      background: #0f1627;
+    }
+
+    canvas {
+      background: #0f1627;
+      border: 1px solid #223055;
+      border-radius: 1rem;
+      padding: .5rem;
+    }
+
+    .kpi {
+      background: #0f1627;
+      border: 1px solid #223055;
+    }
+
+    .tagA {
+      background: #1d4ed8;
+      color: #fff;
+    }
+
+    .tagB {
+      background: #16a34a;
+      color: #fff;
+    }
+
+    .volbar {
+      height: 10px;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #0f1627;
+      border: 1px solid #223055;
+    }
+
+    .hint {
+      font-size: 11px;
+      opacity: .7
+    }
+  </style>
+</head>
+
+<body class="min-h-screen">
+
+  <!-- HEADER -->
+  <header class="accent text-white py-8">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-bold">
+          CB Binissalem — Temporada 25-26<br>
+          Sènior Insular Masculí (Doble Equip · Local)
+        </h1>
+        <p class="opacity-90">Carrega dos Excels (Equip A i Equip B) i visualitza A, B o Tots separats.</p>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <label class="inline-flex items-center gap-3 cursor-pointer">
+          <input id="fileInputA" type="file" accept=".xlsx,.xls,.csv" class="hidden">
+          <span class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">📤 Pujar Excel — <b>Equip
+              A</b></span>
+        </label>
+        <label class="inline-flex items-center gap-3 cursor-pointer">
+          <input id="fileInputB" type="file" accept=".xlsx,.xls,.csv" class="hidden">
+          <span class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">📤 Pujar Excel — <b>Equip
+              B</b></span>
+        </label>
+        <button id="exportPdf" class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">🧾 Exportar
+          PDF</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTINGUT -->
+  <main id="dashboardRoot" class="max-w-7xl mx-auto px-6 py-8">
+    <!-- 🔽🔽 CONTINUA A LA PART 2 (seccions del dashboard, taules, gràfiques i mòdul TAG+G) 🔽🔽 -->
+    <!-- Controls i filtres -->
+    <section class="grid gap-4 md:grid-cols-4 mb-8">
+      <div class="card rounded-2xl p-4">
+        <div class="text-sm uppercase tracking-widest opacity-60">Vista d’equip</div>
+        <select id="teamView" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
+          <option value="A">Equip A</option>
+          <option value="B">Equip B</option>
+          <option value="ALL">Tots (separat)</option>
+        </select>
+        <div class="hint mt-2">En “Tots” no es sumen jugadors duplicats: es mostren com A i com B.</div>
+      </div>
+
+      <div class="card rounded-2xl p-4">
+        <div class="text-sm uppercase tracking-widest opacity-60">Jugador</div>
+        <select id="filterPlayer" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
+          <option value="">Tots</option>
+        </select>
+      </div>
+
+      <div class="card rounded-2xl p-4">
+        <div class="text-sm uppercase tracking-widest opacity-60">Ordenació rànquings</div>
+        <select id="rankingKey" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
+          <option value="PTS">PTS</option>
+          <option value="MIN">MIN</option>
+          <option value="T2%">T2%</option>
+          <option value="T3%">T3%</option>
+          <option value="TL%">TL%</option>
+          <option value="VAL">VAL</option>
+          <option value="PTS/MIN">PTS/min</option>
+          <option value="VAL/MIN">VAL/min</option>
+          <option value="TIRS">Tirs totals</option>
+        </select>
+        <div class="hint mt-2">Els rànquings usen la vista actual (A/B/Tots).</div>
+      </div>
+
+      <div class="card rounded-2xl p-4">
+        <div class="text-sm uppercase tracking-widest opacity-60">Accions</div>
+        <div class="mt-2 flex gap-2 flex-wrap">
+          <button id="btnSortPts" class="px-3 py-2 rounded-xl chip">Ordenar taula per PTS</button>
+          <button id="sortVal" class="px-3 py-2 rounded-xl chip">Ordenar taula per VAL</button>
+          <button id="loadSample" class="px-3 py-2 rounded-xl chip">Provar exemple A+B</button>
+          <button id="downloadProcessed" class="px-3 py-2 rounded-xl chip">Descarregar CSV</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPIs -->
+    <section class="grid gap-4 md:grid-cols-6 mb-8">
+      <div class="kpi rounded-2xl p-4 text-center">
+        <div class="text-sm opacity-60">Punts totals</div>
+        <div id="kpiPts" class="text-2xl font-bold">–</div>
+      </div>
+      <div class="kpi rounded-2xl p-4 text-center">
+        <div class="text-sm opacity-60">Minuts totals</div>
+        <div id="kpiMin" class="text-2xl font-bold">–</div>
+      </div>
+      <div class="kpi rounded-2xl p-4 text-center">
+        <div class="text-sm opacity-60">Tirs intentats</div>
+        <div id="kpiShots" class="text-2xl font-bold">–</div>
+      </div>
+      <div class="kpi rounded-2xl p-4 text-center">
+        <div class="text-sm opacity-60">% global encert</div>
+        <div id="kpiAcc" class="text-2xl font-bold">–</div>
+      </div>
+      <div class="kpi rounded-2xl p-4 text-center">
+        <div class="text-sm opacity-60">PTS/min</div>
+        <div id="kpiPtsMin" class="text-2xl font-bold">–</div>
+      </div>
+      <div class="kpi rounded-2xl p-4 text-center">
+        <div class="text-sm opacity-60">VAL/min</div>
+        <div id="kpiValMin" class="text-2xl font-bold">–</div>
+      </div>
+    </section>
+
+    <!-- Taula principal -->
+    <section class="card rounded-2xl p-5 mb-8">
+      <div class="flex items-center justify-between gap-4 mb-4">
+        <h2 class="text-xl font-semibold">Taula de jugadors</h2>
+        <div class="flex gap-2 text-sm">
+          <button id="sortPts" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per PTS</button>
+          <button id="sortMin" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per MIN</button>
+          <button id="sortVal2" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per VAL</button>
+        </div>
+      </div>
+      <div class="overflow-auto rounded-2xl border border-slate-700">
+        <table id="dataTable" class="min-w-full text-sm">
+          <thead>
+            <tr class="text-left">
+              <th class="px-3 py-2">Nom</th>
+              <th class="px-3 py-2">Equip</th>
+              <th class="px-3 py-2">PJ</th>
+              <th class="px-3 py-2">MIN</th>
+              <th class="px-3 py-2">MIN/P</th>
+              <th class="px-3 py-2">PTS</th>
+              <th class="px-3 py-2">PTS/P</th>
+              <th class="px-3 py-2">TL A</th>
+              <th class="px-3 py-2">TL CI</th>
+              <th class="px-3 py-2">TL%</th>
+              <th class="px-3 py-2">T2 A</th>
+              <th class="px-3 py-2">T2 CI</th>
+              <th class="px-3 py-2">T2%</th>
+              <th class="px-3 py-2">T3 A</th>
+              <th class="px-3 py-2">T3 CI</th>
+              <th class="px-3 py-2">T3%</th>
+              <th class="px-3 py-2">%GLOBAL</th>
+              <th class="px-3 py-2">VAL</th>
+              <th class="px-3 py-2">PTS/MIN</th>
+              <th class="px-3 py-2">VAL/MIN</th>
+              <th class="px-3 py-2">Volum total (T2+T3+TL)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="hint mt-2">Barra de volum: <span style="color:#60a5fa">T2 CI</span> · <span style="color:#34d399">T3
+          CI</span> · <span style="color:#fbbf24">TL CI</span>.</div>
+    </section>
+
+    <!-- Gràfiques bàsiques -->
+    <section class="grid gap-6 md:grid-cols-2 mb-8">
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Punts totals per jugador</h3><canvas id="chartPts" height="240"></canvas>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Minuts totals per jugador</h3><canvas id="chartMin" height="240"></canvas>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Percentatge T2 (%)</h3><canvas id="chartT2" height="240"></canvas>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Percentatge T3 (%)</h3><canvas id="chartT3" height="240"></canvas>
+      </div>
+      <div class="card rounded-2xl p-5 md:col-span-2">
+        <h3 class="font-semibold mb-3">Composició de tirs (encerts vs intents)</h3><canvas id="chartShotsStack"
+          height="260"></canvas>
+      </div>
+    </section>
+
+    <!-- TOPS i Volum -->
+    <section class="grid gap-6 md:grid-cols-2 mb-8">
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — Valoració (FEB)</h3><canvas id="chartTopVal" height="240"></canvas>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — PTS/min</h3><canvas id="chartTopPtsMin" height="240"></canvas>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — VAL/min</h3><canvas id="chartTopValMin" height="240"></canvas>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — % Global</h3><canvas id="chartTopAcc" height="240"></canvas>
+      </div>
+
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">TOP 5 — T2 anotats</h3><canvas id="chartTopT2F" height="240"></canvas>
+        <ol id="rankT2Made" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">TOP 5 — T3 anotats</h3><canvas id="chartTopT3F" height="240"></canvas>
+        <ol id="rankT3Made" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">TOP 5 — TL anotats</h3><canvas id="chartTopTLLF" height="240"></canvas>
+        <ol id="rankTLMade" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+
+      <div class="card rounded-2xl p-5 md:col-span-2">
+        <h3 class="font-semibold mb-3">Volum total de tir (T2 CI + T3 CI + TL CI)</h3><canvas id="chartShotVolume"
+          height="260"></canvas>
+      </div>
+    </section>
+
+    <!-- Rànquings en llista -->
+    <section class="grid gap-6 md:grid-cols-3 mb-12">
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — Punts</h3>
+        <ol id="rankPts" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — Minuts</h3>
+        <ol id="rankMin" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — Tirs totals</h3>
+        <ol id="rankShots" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — T2%</h3>
+        <ol id="rankT2" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — T3%</h3>
+        <ol id="rankT3" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <h3 class="font-semibold mb-3">Top 5 — TL%</h3>
+        <ol id="rankTL" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+      </div>
+    </section>
+
+    <!-- Comparativa i Radar -->
+    <section class="grid gap-6 md:grid-cols-2 mb-12">
+      <div class="card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold">Comparativa Jugador vs Jugador</h3>
+          <div class="text-xs opacity-70">Selecciona dos jugadors</div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <select id="cmpA" class="bg-transparent border border-slate-600 rounded-xl p-2"></select>
+          <select id="cmpB" class="bg-transparent border border-slate-600 rounded-xl p-2"></select>
+        </div>
+        <canvas id="chartCompare" height="260"></canvas>
+      </div>
+      <div class="card rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold">Radar — Perfil del jugador</h3>
+          <div class="text-xs opacity-70">Escull un jugador</div>
+        </div>
+        <select id="radarPlayer" class="bg-transparent border border-slate-600 rounded-xl p-2 mb-3 w-full"></select>
+        <canvas id="chartRadar" height="260"></canvas>
+      </div>
+    </section>
+
+    <!-- ================== QUINTET PERSONALITZAT (Lineup Builder) ================== -->
+    <section id="customLineup" class="card rounded-2xl p-6 mb-16">
+      <h2 class="text-2xl font-bold mb-4">🛠️ Quintet Personalitzat (Lineup Builder)</h2>
+      <p class="opacity-80 mb-4">Selecciona 5 jugadors (Equip A o B) per veure les estadístiques acumulades del quintet.
+      </p>
+
+      <div class="grid gap-4 md:grid-cols-5 mb-6">
+        <!-- 5 Selectors -->
+        <div><label class="text-xs opacity-60 uppercase">Posició 1</label><select id="slot1"
+            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+        <div><label class="text-xs opacity-60 uppercase">Posició 2</label><select id="slot2"
+            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+        <div><label class="text-xs opacity-60 uppercase">Posició 3</label><select id="slot3"
+            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+        <div><label class="text-xs opacity-60 uppercase">Posició 4</label><select id="slot4"
+            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+        <div><label class="text-xs opacity-60 uppercase">Posició 5</label><select id="slot5"
+            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+      </div>
+
+      <!-- Stats del Quintet -->
+      <div class="grid gap-4 md:grid-cols-4">
+        <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
+          <div class="text-sm opacity-60">Punts Totals</div>
+          <div id="lPts" class="text-xl font-bold text-blue-400">0</div>
+        </div>
+        <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
+          <div class="text-sm opacity-60">% Tir Global (Mitjana)</div>
+          <div id="lAcc" class="text-xl font-bold text-green-400">0%</div>
+        </div>
+        <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
+          <div class="text-sm opacity-60">T3% (Mitjana)</div>
+          <div id="lT3" class="text-xl font-bold text-purple-400">0%</div>
+        </div>
+        <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
+          <div class="text-sm opacity-60">VAL Total</div>
+          <div id="lVal" class="text-xl font-bold text-yellow-400">0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================== QUINTETS TAG+G (Opció C: compacte + avançat) ================== -->
+    <section id="taggLineups" class="card rounded-2xl p-6 mb-16">
+      <h2 class="text-2xl font-bold mb-4">🔷 Quintets Òptims TAG+G</h2>
+      <p class="opacity-80 mb-4">Generats automàticament en base al sistema TAG+G i les estadístiques carregades.</p>
+
+      <div class="flex gap-2 flex-wrap mb-4">
+        <button id="btnComputeTAGG" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition">🔁 Tornar a
+          calcular quintets</button>
+        <button id="toggleTAGGAdvanced" class="px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-600 transition">⚙️ Mode
+          Avançat (restriccions)</button>
+      </div>
+
+      <!-- Panell avançat (desplegable) -->
+      <div id="taggAdvancedPanel" class="hidden bg-[#0f1627] border border-slate-700 p-5 rounded-xl mb-6 space-y-4">
+        <h3 class="text-lg font-semibold mb-3">Paràmetres avançats del sistema TAG+G</h3>
+
+        <div class="grid md:grid-cols-3 gap-4">
+          <div>
+            <label class="opacity-80">Mínim tiradors (T3% &gt;=):</label>
+            <div class="flex items-center gap-2 mt-1">
+              <input id="advMinShooters" type="number" value="2" min="0" max="5"
+                class="w-20 bg-transparent border border-slate-600 rounded-xl p-2" />
+              <input id="advMinT3" type="number" value="30" min="0" max="100"
+                class="w-20 bg-transparent border border-slate-600 rounded-xl p-2" /><span>%</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="opacity-80">Defensa mínima (STL+BLK):</label>
+            <input id="advMinDefense" type="number" value="2" min="0" max="10"
+              class="mt-1 w-24 bg-transparent border border-slate-600 rounded-xl p-2" />
+          </div>
+
+          <div>
+            <label class="opacity-80">Excloure MIN &lt; 10:</label>
+            <select id="advExcludeLowMIN" class="mt-1 bg-transparent border border-slate-600 rounded-xl p-2 w-full">
+              <option value="yes">Sí</option>
+              <option value="no" selected>No</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="opacity-80">Requereix un generador (PG) amb MIN &gt;= 20?:</label>
+            <select id="advRequirePG" class="mt-1 bg-transparent border border-slate-600 rounded-xl p-2 w-full">
+              <option value="yes">Sí</option>
+              <option value="no" selected>No</option>
+            </select>
+            <div class="hint mt-1">Heurística PG: MIN alts i PTS/MIN ≥ 0.25</div>
+          </div>
+        </div>
+
+        <button id="btnComputeAdvancedTAGG"
+          class="mt-2 px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 transition">
+          🧠 Generar Quintets amb Restriccions
+        </button>
+      </div>
+
+      <div id="taggResults" class="space-y-6 text-sm"></div>
+    </section>
+
+  </main>
+  <!-- 🔼🔼 FI DE LA PART 2 — A continuació, PART 3 amb tot el JavaScript i la integració 🔼🔼 -->
+  <script>
+    /* ========= Utils ========= */
+    const toNumber = (v) => { if (v === undefined || v === null) return 0; if (typeof v === 'number') return v; const s = String(v).trim().replace('%', '').replace(',', '.'); const n = Number(s); return Number.isFinite(n) ? n : 0; };
+    const pct = (a, ci) => (toNumber(ci) > 0 ? +(100 * toNumber(a) / toNumber(ci)).toFixed(1) : 0);
+    const el = (s) => document.querySelector(s);
+
+    /* ========= Estat global ========= */
+    let rowsA_master = []; // Equip A
+    let rowsB_master = []; // Equip B
+    let rowsMaster = [];   // Vista (A/B/ALL)
+    let rows = [];         // Vista + filtre jugador
+    let charts = {};
+
+    /* ========= Normalització ========= */
+    function parseACI(o, baseKey) {
+      const raw = o[`${baseKey} A/CI`] || o[`${baseKey}A/CI`] || o[`${baseKey} ACI`] || o[`${baseKey}`] || "";
+      const clean = String(raw).trim().replace(/\s+/g, '');
+      let A = toNumber(o[`${baseKey} A`]);
+      let CI = toNumber(o[`${baseKey} CI`]);
+      if ((!A && !CI) && clean.includes('/')) { const [a, ci] = clean.split('/'); A = toNumber(a); CI = toNumber(ci); }
+      return { A, CI };
+    }
+    function normalizeRows(arr, teamTag) {
+      return arr.map(o => {
+        const r = {};
+        r['Nom'] = o['Nom'] || o['nom'] || o['NOM'] || '';
+        r['Team'] = teamTag || o['Equip'] || o['Team'] || '';
+        r['PJ'] = toNumber(o['PJ']);
+        r['MIN'] = toNumber(o['MIN']);
+        r['MIN/P'] = toNumber(o['MIN/P'] ?? o['MIN per partit'] ?? o['MIN PP']);
+        r['PTS'] = toNumber(o['PTS']);
+        r['PTS/P'] = toNumber(o['PTS/P'] ?? o['PTS PP']);
+        r['FC/P'] = toNumber(o['FC/P'] ?? o['F/C']);
+
+        const tl = parseACI(o, 'TL'), t2 = parseACI(o, 'T2'), t3 = parseACI(o, 'T3');
+        r['TL A'] = tl.A; r['TL CI'] = tl.CI; r['TL%'] = tl.CI ? pct(tl.A, tl.CI) : toNumber(o['TL%']);
+        r['T2 A'] = t2.A; r['T2 CI'] = t2.CI; r['T2%'] = pct(t2.A, t2.CI);
+        r['T3 A'] = t3.A; r['T3 CI'] = t3.CI; r['T3%'] = pct(t3.A, t3.CI);
+
+        r['TIRS'] = r['T2 CI'] + r['T3 CI'];
+        r['ENCERTS'] = r['T2 A'] + r['T3 A'];
+        r['%GLOBAL'] = pct(r['ENCERTS'], r['TIRS']);
+        r['PTS/MIN'] = r['MIN'] ? +(r['PTS'] / r['MIN']).toFixed(3) : 0;
+
+        // Camps addicionals (per TAG+G)
+        const REB_DEF = toNumber(o['REB DEF']);
+        const REB_OF = toNumber(o['REB OF']);
+        const REB = toNumber(o['REB']) || (REB_DEF + REB_OF) || 0;
+        const AST = toNumber(o['AST']);
+        const STL = toNumber(o['STL']);
+        const BLK_FAV = toNumber(o['BLK FAV']) || toNumber(o['BLK']);
+        const BLK_CON = toNumber(o['BLK CON']);
+        const TOV = toNumber(o['TOV']) || toNumber(o['TO']) || toNumber(o['Pèrdues']);
+        const FC = toNumber(o['FC']) || toNumber(o['Faltes Comeses']);
+        const FR = toNumber(o['FR']) || toNumber(o['Faltes Rebudes']);
+
+        r['REB'] = REB; r['AST'] = AST; r['STL'] = STL; r['BLK FAV'] = BLK_FAV; r['BLK CON'] = BLK_CON; r['TOV'] = TOV; r['FC'] = FC; r['FR'] = FR;
+
+        const tirsFallats = (r['T2 CI'] - r['T2 A']) + (r['T3 CI'] - r['T3 A']);
+        const tlFallats = (r['TL CI'] - r['TL A']);
+        const VAL = r['PTS'] + REB + AST + STL + BLK_FAV + FR - (tirsFallats + tlFallats + TOV + BLK_CON + FC);
+        r['VAL'] = +VAL.toFixed(1);
+        r['VAL/MIN'] = r['MIN'] ? +(r['VAL'] / r['MIN']).toFixed(3) : 0;
+
+        r['VOL_TOT'] = r['T2 CI'] + r['T3 CI'] + r['TL CI'];
+        return r;
+      });
+    }
+
+    /* ========= Construcció de vista ========= */
+    function buildRowsMaster() {
+      const view = el('#teamView').value;
+      if (view === 'A') rowsMaster = [...rowsA_master];
+      else if (view === 'B') rowsMaster = [...rowsB_master];
+      else rowsMaster = [...rowsA_master, ...rowsB_master]; // Tots separats
+    }
+
+    /* ========= Filtres & Selectors ========= */
+    function fillSelectOptions() {
+      const players = Array.from(new Set(rowsMaster.map(r => r.Nom))).sort();
+      const setSel = (id, withAll = false) => {
+        const s = document.getElementById(id);
+        if (!s) return;
+        s.innerHTML = (withAll ? '<option value="">Tots</option>' : '') + players.map(p => `<option>${p}</option>`).join('');
+      };
+      setSel('filterPlayer', true);
+      setSel('cmpA', false);
+      setSel('cmpB', false);
+      setSel('radarPlayer', false);
+      if (players.length) {
+        if (!el('#cmpA').value) el('#cmpA').value = players[0];
+        if (!el('#cmpB').value) el('#cmpB').value = players[Math.min(1, players.length - 1)];
+        if (!el('#radarPlayer').value) el('#radarPlayer').value = players[0];
+      }
+    }
+    function applyFilters() {
+      const p = el('#filterPlayer').value;
+      rows = rowsMaster.filter(r => (!p || r.Nom === p));
+      renderAll();
+    }
+
+    /* ========= Taula ========= */
+    function badge(team) {
+      if (team === 'A') return '<span class="px-2 py-0.5 text-[11px] rounded-lg tagA">A</span>';
+      if (team === 'B') return '<span class="px-2 py-0.5 text-[11px] rounded-lg tagB">B</span>';
+      return '<span class="px-2 py-0.5 text-[11px] rounded-lg" style="background:#7c5cff;color:#fff;">A+B</span>';
+    }
+    function volGradient(t2ci, t3ci, tlci) {
+      const tot = Math.max(1, t2ci + t3ci + tlci);
+      const p2 = Math.round(100 * t2ci / tot);
+      const p3 = Math.round(100 * t3ci / tot);
+      const pL = 100 - p2 - p3;
+      return `linear-gradient(90deg,#60a5fa ${p2}%,#34d399 0 ${p2 + p3}%,#fbbf24 0 100%)`;
+    }
+    function renderTable() {
+      const tbody = el('#dataTable tbody');
+      tbody.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'odd:bg-slate-900/30 align-middle';
+        const grad = volGradient(r['T2 CI'], r['T3 CI'], r['TL CI']);
+        const volBar = `<div class="volbar"><div style="width:100%;height:100%;background:${grad}"></div></div>
+                    <div class="text-xs opacity-70 mt-1">T2:${r['T2 CI']} · T3:${r['T3 CI']} · TL:${r['TL CI']} = <b>${r['VOL_TOT']}</b></div>`;
+        tr.innerHTML = `
+      <td class="px-3 py-2 whitespace-nowrap">${r.Nom}</td>
+      <td class="px-3 py-2">${badge(r.Team)}</td>
+      <td class="px-3 py-2">${r.PJ}</td>
+      <td class="px-3 py-2">${r.MIN}</td>
+      <td class="px-3 py-2">${r['MIN/P']}</td>
+      <td class="px-3 py-2">${r.PTS}</td>
+      <td class="px-3 py-2">${r['PTS/P']}</td>
+      <td class="px-3 py-2">${r['TL A']}</td>
+      <td class="px-3 py-2">${r['TL CI']}</td>
+      <td class="px-3 py-2">${r['TL%']}</td>
+      <td class="px-3 py-2">${r['T2 A']}</td>
+      <td class="px-3 py-2">${r['T2 CI']}</td>
+      <td class="px-3 py-2">${r['T2%']}</td>
+      <td class="px-3 py-2">${r['T3 A']}</td>
+      <td class="px-3 py-2">${r['T3 CI']}</td>
+      <td class="px-3 py-2">${r['T3%']}</td>
+      <td class="px-3 py-2">${r['%GLOBAL']}</td>
+      <td class="px-3 py-2">${r['VAL']}</td>
+      <td class="px-3 py-2">${r['PTS/MIN']}</td>
+      <td class="px-3 py-2">${r['VAL/MIN']}</td>
+      <td class="px-3 py-2 min-w-[240px]">${volBar}</td>
+    `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /* ========= KPIs & Rànquings ========= */
+    function renderKpis() {
+      const sum = (k) => rows.reduce((a, b) => a + toNumber(b[k]), 0);
+      const avg = (k) => rows.length ? +(rows.reduce((a, b) => a + toNumber(b[k]), 0) / rows.length).toFixed(3) : 0;
+      const tirs = sum('TIRS'); const encerts = sum('ENCERTS');
+      el('#kpiPts').textContent = sum('PTS');
+      el('#kpiMin').textContent = sum('MIN');
+      el('#kpiShots').textContent = sum('VOL_TOT');
+      el('#kpiAcc').textContent = (tirs ? +(100 * encerts / tirs).toFixed(1) : 0) + '%';
+      el('#kpiPtsMin').textContent = avg('PTS/MIN');
+      el('#kpiValMin').textContent = avg('VAL/MIN');
+    }
+    function renderRanks() {
+      const top = (key, desc = true) => [...rows].sort((a, b) => (desc ? b[key] - a[key] : a[key] - b[key])).slice(0, 5);
+      const paint = (id, arr, key, suffix = '') => {
+        const ol = document.getElementById(id); if (!ol) return;
+        ol.innerHTML = arr.map(r => `<li>${badge(r.Team)} ${r.Nom} — <b>${r[key]}${suffix}</b></li>`).join('');
+      };
+      paint('rankPts', top('PTS'), 'PTS');
+      paint('rankMin', top('MIN'), 'MIN');
+      paint('rankShots', top('TIRS'), 'TIRS');
+      paint('rankT2', top('T2%'), 'T2%', '%');
+      paint('rankT3', top('T3%'), 'T3%', '%');
+      paint('rankTL', top('TL%'), 'TL%', '%');
+    }
+
+    /* ======== Rànquings T2/T3/TL anotats (llistes) ========= */
+    function renderShotRanks() {
+      const sortDesc = (key) => [...rows].sort((a, b) => b[key] - a[key]).slice(0, 5);
+      const paint = (id, arr, key) => {
+        const elol = document.getElementById(id);
+        if (!elol) return;
+        elol.innerHTML = arr.map(r => `<li>${badge(r.Team)} ${r.Nom} — <b>${r[key]}</b></li>`).join('');
+      };
+      paint("rankT2Made", sortDesc("T2 A"), "T2 A");
+      paint("rankT3Made", sortDesc("T3 A"), "T3 A");
+      paint("rankTLMade", sortDesc("TL A"), "TL A");
+    }
+
+    /* ========= Gràfiques ========= */
+    function destroyCharts() { Object.values(charts).forEach(c => c && c.destroy()); charts = {}; }
+    function renderCharts() {
+      const labels = rows.map(r => `${r.Nom}${r.Team ? ' (' + r.Team + ')' : ''}`);
+      const dataPts = rows.map(r => r.PTS);
+      const dataMin = rows.map(r => r.MIN);
+      const dataT2 = rows.map(r => r['T2%']);
+      const dataT3 = rows.map(r => r['T3%']);
+
+      const commonOpts = { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#cbd5e1', maxRotation: 60 } }, y: { ticks: { color: '#cbd5e1' } } } };
+
+      charts.chartPts = new Chart(el('#chartPts'), { type: 'bar', data: { labels, datasets: [{ label: 'PTS', data: dataPts }] }, options: commonOpts });
+      charts.chartMin = new Chart(el('#chartMin'), { type: 'bar', data: { labels, datasets: [{ label: 'MIN', data: dataMin }] }, options: commonOpts });
+      charts.chartT2 = new Chart(el('#chartT2'), { type: 'line', data: { labels, datasets: [{ label: 'T2%', data: dataT2, tension: .25, pointRadius: 4 }] }, options: commonOpts });
+      charts.chartT3 = new Chart(el('#chartT3'), { type: 'line', data: { labels, datasets: [{ label: 'T3%', data: dataT3, tension: .25, pointRadius: 4 }] }, options: commonOpts });
+
+      // Stacked encerts vs intents
+      const makesT2 = rows.map(r => r['T2 A']), attsT2 = rows.map(r => r['T2 CI']);
+      const makesT3 = rows.map(r => r['T3 A']), attsT3 = rows.map(r => r['T3 CI']);
+      charts.chartShotsStack = new Chart(el('#chartShotsStack'), {
+        type: 'bar',
+        data: {
+          labels, datasets: [
+            { label: 'T2 encerts', data: makesT2, stack: 'makes' },
+            { label: 'T3 encerts', data: makesT3, stack: 'makes' },
+            { label: 'T2 intents', data: attsT2, stack: 'atts' },
+            { label: 'T3 intents', data: attsT3, stack: 'atts' },
+          ]
+        },
+        options: { ...commonOpts, scales: { x: { stacked: true, ticks: { color: '#cbd5e1', maxRotation: 60 } }, y: { stacked: true, ticks: { color: '#cbd5e1' } } } }
+      });
+
+      // TOPs
+      const topN = (key, n = 5) => [...rows].sort((a, b) => b[key] - a[key]).slice(0, n);
+      const toChart = (arr, key) => ({ labels: arr.map(r => `${r.Nom}${r.Team ? ' (' + r.Team + ')' : ''}`), data: arr.map(r => r[key]) });
+
+      const topVal = toChart(topN('VAL'), 'VAL');
+      const topPtsMin = toChart(topN('PTS/MIN'), 'PTS/MIN');
+      const topValMin = toChart(topN('VAL/MIN'), 'VAL/MIN');
+      const topAcc = toChart(topN('%GLOBAL'), '%GLOBAL');
+
+      charts.chartTopVal = new Chart(document.getElementById('chartTopVal'), { type: 'bar', data: { labels: topVal.labels, datasets: [{ label: 'VAL', data: topVal.data }] }, options: commonOpts });
+      charts.chartTopPtsMin = new Chart(document.getElementById('chartTopPtsMin'), { type: 'bar', data: { labels: topPtsMin.labels, datasets: [{ label: 'PTS/min', data: topPtsMin.data }] }, options: commonOpts });
+      charts.chartTopValMin = new Chart(document.getElementById('chartTopValMin'), { type: 'bar', data: { labels: topValMin.labels, datasets: [{ label: 'VAL/min', data: topValMin.data }] }, options: commonOpts });
+      charts.chartTopAcc = new Chart(document.getElementById('chartTopAcc'), { type: 'bar', data: { labels: topAcc.labels, datasets: [{ label: '% Global', data: topAcc.data }] }, options: { ...commonOpts, scales: { x: { ticks: { color: '#cbd5e1' } }, y: { ticks: { callback: v => v + '%', color: '#cbd5e1' } } } } });
+
+      const t2F = toChart(topN('T2 A'), 'T2 A');
+      const t3F = toChart(topN('T3 A'), 'T3 A');
+      const tllF = toChart(topN('TL A'), 'TL A');
+
+      charts.chartTopT2F = new Chart(document.getElementById('chartTopT2F'), { type: 'bar', data: { labels: t2F.labels, datasets: [{ label: 'T2 anotats', data: t2F.data }] }, options: commonOpts });
+      charts.chartTopT3F = new Chart(document.getElementById('chartTopT3F'), { type: 'bar', data: { labels: t3F.labels, datasets: [{ label: 'T3 anotats', data: t3F.data }] }, options: commonOpts });
+      charts.chartTopTLLF = new Chart(document.getElementById('chartTopTLLF'), { type: 'bar', data: { labels: tllF.labels, datasets: [{ label: 'TL anotats', data: tllF.data }] }, options: commonOpts });
+
+      const labelsVol = rows.map(r => `${r.Nom}${r.Team ? ' (' + r.Team + ')' : ''}`);
+      const volT2 = rows.map(r => r['T2 CI']);
+      const volT3 = rows.map(r => r['T3 CI']);
+      const volTL = rows.map(r => r['TL CI']);
+      charts.chartShotVolume = new Chart(document.getElementById('chartShotVolume'), {
+        type: 'bar',
+        data: {
+          labels: labelsVol, datasets: [
+            { label: 'T2 intents', data: volT2, backgroundColor: '#60a5fa', stack: 'vol' },
+            { label: 'T3 intents', data: volT3, backgroundColor: '#34d399', stack: 'vol' },
+            { label: 'TL intents', data: volTL, backgroundColor: '#fbbf24', stack: 'vol' }
+          ]
+        },
+        options: { responsive: true, plugins: { legend: { display: true } }, scales: { x: { stacked: true, ticks: { color: '#cbd5e1', maxRotation: 60 } }, y: { stacked: true, ticks: { color: '#cbd5e1' } } } }
+      });
+
+      renderCompare();
+      renderRadar();
+    }
+
+    /* ========= Compare & Radar ========= */
+    function findByName(name) { return rowsMaster.find(r => r.Nom === name); }
+    function renderCompare() {
+      const sA = el('#cmpA'), sB = el('#cmpB');
+      if (!sA || !sB) return;
+      const aName = sA.value, bName = sB.value;
+      if (!aName || !bName || aName === bName) { if (charts.chartCompare) charts.chartCompare.destroy(); return; }
+      const A = findByName(aName), B = findByName(bName);
+      if (!A || !B) return;
+      const labels = ['PTS', 'MIN', 'T2%', 'T3%', 'TL%', 'PTS/P', 'MIN/P', 'VAL', 'PTS/MIN', 'VAL/MIN'];
+      const dataA = [A.PTS, A.MIN, A['T2%'], A['T3%'], A['TL%'], A['PTS/P'], A['MIN/P'], A['VAL'], A['PTS/MIN'], A['VAL/MIN']];
+      const dataB = [B.PTS, B.MIN, B['T2%'], B['T3%'], B['TL%'], B['PTS/P'], B['MIN/P'], B['VAL'], B['PTS/MIN'], B['VAL/MIN']];
+      if (charts.chartCompare) charts.chartCompare.destroy();
+      charts.chartCompare = new Chart(el('#chartCompare'), {
+        type: 'bar',
+        data: {
+          labels, datasets: [
+            { label: `${A.Nom}${A.Team ? ' (' + A.Team + ')' : ''}`, data: dataA },
+            { label: `${B.Nom}${B.Team ? ' (' + B.Team + ')' : ''}`, data: dataB }
+          ]
+        },
+        options: { responsive: true, indexAxis: 'y', plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+    function renderRadar() {
+      const sel = el('#radarPlayer'); if (!sel || !sel.value) { if (charts.chartRadar) charts.chartRadar.destroy(); return; }
+      const R = findByName(sel.value); if (!R) { if (charts.chartRadar) charts.chartRadar.destroy(); return; }
+      const labels = ['PTS', 'MIN', 'T2%', 'T3%', 'TL%', 'VAL'];
+      const maxVals = {
+        'PTS': Math.max(...rowsMaster.map(r => r.PTS), 1),
+        'MIN': Math.max(...rowsMaster.map(r => r.MIN), 1),
+        'T2%': 100, 'T3%': 100, 'TL%': 100,
+        'VAL': Math.max(...rowsMaster.map(r => r['VAL']), 1)
+      };
+      const raw = { 'PTS': R.PTS, 'MIN': R.MIN, 'T2%': R['T2%'], 'T3%': R['T3%'], 'TL%': R['TL%'], 'VAL': R['VAL'] };
+      const norm = labels.map(k => +(100 * raw[k] / maxVals[k]).toFixed(1));
+      if (charts.chartRadar) charts.chartRadar.destroy();
+      charts.chartRadar = new Chart(el('#chartRadar'), {
+        type: 'radar',
+        data: { labels, datasets: [{ label: `${R.Nom}${R.Team ? ' (' + R.Team + ')' : ''}`, data: norm, fill: true, backgroundColor: 'rgba(124,92,255,0.25)', borderColor: '#7c5cff' }] },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { r: { suggestedMin: 0, suggestedMax: 100, ticks: { display: false }, pointLabels: { color: '#cbd5e1' } } } }
+      });
+    }
+
+    /* ========= QUINTETS TAG+G (bàsic) ========= */
+    function scoreTAGGPlayer(p) {
+      const stl = toNumber(p.STL), blk = toNumber(p['BLK FAV']);
+      const tov = toNumber(p.TOV), reb = toNumber(p.REB);
+      const valmin = toNumber(p['VAL/MIN']);
+      const bpm = toNumber(p['PTS/MIN']);
+      const acc = toNumber(p['%GLOBAL']);
+      const t3 = toNumber(p['T3%']);
+      const val = toNumber(p['VAL']);
+
+      const tagg_score =
+        toNumber(p.MIN) * 0.12 +
+        toNumber(p.PTS) * 0.18 +
+        acc * 0.22 +
+        valmin * 0.20 +
+        (stl + blk) * 1.20 -
+        tov * 0.80 +
+        reb * 0.25;
+
+      return {
+        name: p.Nom,
+        team: p.Team,
+        mins: toNumber(p.MIN),
+        pts: toNumber(p.PTS),
+        acc, t3,
+        t2: toNumber(p['T2%']),
+        vol: toNumber(p.VOL_TOT),
+        val, bpm,
+        def: stl + blk,
+        reb, tov,
+        tagg_score
+      };
+    }
+    function computeTAGGLineups() {
+      const base = rowsMaster.map(scoreTAGGPlayer);
+      const target = el("#taggResults");
+      if (!base.length) { target.innerHTML = "<p>No hi ha dades carregades.</p>"; return; }
+
+      const sort = (arr, key, desc = true) =>
+        [...arr].sort((a, b) => desc ? b[key] - a[key] : a[key] - b[key]).slice(0, 5);
+
+      const quintetGlobal = sort(base, "tagg_score", true);
+      const quintetRitme = sort(base, "bpm", true);
+      const quintetTir = sort(base, "acc", true);
+      const quintetPressio = sort(base, "def", true);
+      const quintetZona = sort(base, "t3", true);
+      const quintetFinal = sort(base, "val", true);
+
+      const paint = (title, arr) => `
+    <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700">
+      <h3 class="text-lg font-semibold mb-2">${title}</h3>
+      <ul class="space-y-1">
+        ${arr.map(p => `
+          <li>
+            <b>${p.name}${p.team ? ' (' + p.team + ')' : ''}</b>
+            — PTS ${p.pts} · %Global ${p.acc}% · VAL ${p.val} · BPM ${p.bpm}
+          </li>`).join("")}
+      </ul>
+    </div>`;
+
+      target.innerHTML =
+        paint("🔥 Quintet Global TAG+G", quintetGlobal) +
+        paint("⚡ Quintet de Ritme", quintetRitme) +
+        paint("🎯 Quintet de Tir", quintetTir) +
+        paint("🛡 Quintet de Pressió", quintetPressio) +
+        paint("🏹 Quintet Anti-Zona", quintetZona) +
+        paint("🔒 Quintet Final de Partit", quintetFinal);
+    }
+
+    /* ========= MODE AVANÇAT — Restriccions ========= */
+    function computeAdvancedTAGG() {
+      const base = rowsMaster.map(scoreTAGGPlayer);
+
+      const minShooters = toNumber(el("#advMinShooters").value);
+      const minT3 = toNumber(el("#advMinT3").value);
+      const requirePG = el("#advRequirePG").value === "yes";
+      const minDefense = toNumber(el("#advMinDefense").value);
+      const excludeLowMIN = el("#advExcludeLowMIN").value === "yes";
+
+      let filtered = base.filter(p => true);
+      if (excludeLowMIN) filtered = filtered.filter(p => p.mins >= 10);
+      filtered = filtered.filter(p => p.acc >= 20); // tall bàsic d'eficiència
+      filtered = filtered.filter(p => p.def >= minDefense);
+
+      const shooters = filtered.filter(p => p.t3 >= minT3);
+      if (shooters.length < minShooters) {
+        el("#taggResults").innerHTML =
+          "<p class='text-red-400'>No hi ha prou tiradors per complir les restriccions.</p>";
+        return;
+      }
+
+      if (requirePG) {
+        const pg = filtered.find(p => p.mins >= 20 && p.bpm >= 0.25);
+        if (!pg) {
+          el("#taggResults").innerHTML =
+            "<p class='text-red-400'>No hi ha cap jugador que compleixi el rol de PG (MIN≥20 i PTS/MIN≥0.25).</p>";
+          return;
+        }
+      }
+
+      const best = [...filtered].sort((a, b) => b.tagg_score - a.tagg_score).slice(0, 5);
+
+      el("#taggResults").innerHTML = `
+    <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700">
+      <h3 class="text-lg font-semibold mb-2">🧠 Quintet TAG+G amb restriccions</h3>
+      <ul class="space-y-1">
+        ${best.map(p => `<li><b>${p.name}${p.team ? ' (' + p.team + ')' : ''}</b> — ${p.pts} PTS · ${p.acc}% Tir · DEF ${p.def} · BPM ${p.bpm}</li>`).join("")}
+      </ul>
+    </div>
+  `;
+    }
+
+    /* ========= LINEUP BUILDER ========= */
+    function populateLineupSelectors() {
+      // Combine all players from A and B for the selectors, regardless of current view
+      // We want to allow mixing A and B.
+      // We need unique identifiers. Since names might collide if we didn't handle them, 
+      // but here we have separate objects. We'll use "Name (Team)" as value.
+
+      const allPlayers = [...rowsA_master, ...rowsB_master].sort((a, b) => a.Nom.localeCompare(b.Nom));
+      const options = ['<option value="">-- Selecciona --</option>']
+        .concat(allPlayers.map((p, i) => `<option value="${i}">${p.Nom} (${p.Team})</option>`));
+
+      ['slot1', 'slot2', 'slot3', 'slot4', 'slot5'].forEach(id => {
+        const s = el('#' + id);
+        if (s) s.innerHTML = options.join('');
+      });
+    }
+
+    function calculateLineupStats() {
+      const allPlayers = [...rowsA_master, ...rowsB_master].sort((a, b) => a.Nom.localeCompare(b.Nom));
+      let totalPts = 0, totalVal = 0;
+      let sumAcc = 0, sumT3 = 0, count = 0;
+
+      ['slot1', 'slot2', 'slot3', 'slot4', 'slot5'].forEach(id => {
+        const idx = el('#' + id).value;
+        if (idx !== "") {
+          const p = allPlayers[idx];
+          if (p) {
+            totalPts += p.PTS;
+            totalVal += p.VAL;
+            sumAcc += p['%GLOBAL'];
+            sumT3 += p['T3%'];
+            count++;
+          }
+        }
+      });
+
+      el('#lPts').textContent = totalPts;
+      el('#lVal').textContent = totalVal.toFixed(1);
+      el('#lAcc').textContent = (count ? (sumAcc / count).toFixed(1) : 0) + '%';
+      el('#lT3').textContent = (count ? (sumT3 / count).toFixed(1) : 0) + '%';
+    }
+
+    /* ========= Render global ========= */
+    function renderAll() { renderTable(); renderKpis(); renderRanks(); renderShotRanks(); destroyCharts(); renderCharts(); }
+    function rebuildAndRender() { buildRowsMaster(); fillSelectOptions(); rows = [...rowsMaster]; applyFilters(); }
+
+    /* ========= Lectura d’arxius ========= */
+    function readFileForTeam(file, teamTag) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          let json;
+          if (file.name.toLowerCase().endsWith('.csv')) {
+            const text = new TextDecoder().decode(data);
+            const wb = XLSX.read(text, { type: 'string' });
+            json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: false });
+          } else {
+            const wb = XLSX.read(data, { type: 'array', cellText: false, cellDates: true });
+            json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: false });
+          }
+          if (!json.length) throw new Error('Full buit');
+          const norm = normalizeRows(json, teamTag);
+          if (teamTag === 'A') rowsA_master = norm; else rowsB_master = norm;
+          rebuildAndRender();
+          computeTAGGLineups(); // recalcular quintets en carregar fitxer
+        } catch (err) { alert('No s\'ha pogut llegir l\'arxiu: ' + err.message); console.error(err); }
+      };
+      reader.onerror = () => alert('Error de lectura del fitxer.');
+      reader.readAsArrayBuffer(file);
+    }
+
+    /* ========= Exportació ========= */
+    async function exportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const node = document.getElementById('dashboardRoot');
+      const canvas = await html2canvas(node, { backgroundColor: '#0b0f1a', scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth - 40; const imgHeight = canvas.height * imgWidth / canvas.width;
+      let y = 20, x = 20;
+      if (imgHeight < pageHeight - 40) { pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight); }
+      else {
+        let sY = 0; const sliceHeight = canvas.height * (pageHeight - 40) / imgHeight;
+        while (sY < canvas.height) {
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width = canvas.width; pageCanvas.height = Math.min(sliceHeight, canvas.height - sY);
+          const ctx = pageCanvas.getContext('2d'); ctx.drawImage(canvas, 0, sY, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
+          const pageData = pageCanvas.toDataURL('image/png');
+          if (sY > 0) pdf.addPage();
+          pdf.addImage(pageData, 'PNG', x, y, imgWidth, (pageCanvas.height * imgWidth / canvas.width));
+          sY += sliceHeight;
+        }
+      }
+      pdf.save('dashboard_basquet.pdf');
+    }
+    function downloadCSVProcessed() {
+      if (!rows.length) return;
+      const headers = ['Nom', 'Team', 'PJ', 'MIN', 'MIN/P', 'PTS', 'PTS/P', 'TL A', 'TL CI', 'TL%', 'T2 A', 'T2 CI', 'T2%', 'T3 A', 'T3 CI', 'T3%', '%GLOBAL', 'VAL', 'PTS/MIN', 'VAL/MIN', 'VOL_TOT', 'REB', 'AST', 'STL', 'BLK FAV', 'BLK CON', 'TOV'];
+      const csv = [headers.join(',')].concat(rows.map(r => headers.map(h => (r[h] ?? '')).join(','))).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'estadistiques_processat.csv'; a.click(); URL.revokeObjectURL(url);
+    }
+
+    /* ========= Dades Reals Extretes (Auto-load) ========= */
+    const realDataA = [
+      { "Nom": "BARTOMEU GAMUNDI SUREDA", "PJ": 9, "MIN": 303, "MIN/P": 34, "PTS": 130, "PTS/P": 14, "TL A": 17, "TL CI": 36, "TL%": 47, "T2 A": 28, "T2 CI": 75, "T2%": 37, "T3 A": 19, "T3 CI": 60, "T3%": 31, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ANGEL JOAN GAMUNDI SUREDA", "PJ": 9, "MIN": 260, "MIN/P": 29, "PTS": 121, "PTS/P": 13, "TL A": 12, "TL CI": 27, "TL%": 44, "T2 A": 41, "T2 CI": 107, "T2%": 38, "T3 A": 9, "T3 CI": 45, "T3%": 20, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "PERE JOAN PONS COLL", "PJ": 9, "MIN": 222, "MIN/P": 25, "PTS": 93, "PTS/P": 10, "TL A": 12, "TL CI": 16, "TL%": 75, "T2 A": 15, "T2 CI": 48, "T2%": 31, "T3 A": 17, "T3 CI": 46, "T3%": 36, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "BIEL CAMPINS LLOMPART", "PJ": 9, "MIN": 217, "MIN/P": 24, "PTS": 85, "PTS/P": 9, "TL A": 20, "TL CI": 37, "TL%": 54, "T2 A": 25, "T2 CI": 48, "T2%": 52, "T3 A": 5, "T3 CI": 12, "T3%": 41, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "MARTI MUNAR BARCELO", "PJ": 5, "MIN": 131, "MIN/P": 26, "PTS": 30, "PTS/P": 6, "TL A": 2, "TL CI": 10, "TL%": 20, "T2 A": 14, "T2 CI": 33, "T2%": 42, "T3 A": 0, "T3 CI": 6, "T3%": 0, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ADAY SANCHEZ VILLALONGA", "PJ": 8, "MIN": 93, "MIN/P": 12, "PTS": 25, "PTS/P": 3, "TL A": 8, "TL CI": 16, "TL%": 50, "T2 A": 7, "T2 CI": 15, "T2%": 46, "T3 A": 1, "T3 CI": 3, "T3%": 33, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "PAU ANDREU NAVARRO", "PJ": 9, "MIN": 140, "MIN/P": 16, "PTS": 22, "PTS/P": 2, "TL A": 11, "TL CI": 15, "TL%": 73, "T2 A": 4, "T2 CI": 16, "T2%": 25, "T3 A": 1, "T3 CI": 17, "T3%": 5, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ANGEL VERDERA BARCELO", "PJ": 7, "MIN": 102, "MIN/P": 15, "PTS": 21, "PTS/P": 3, "TL A": 4, "TL CI": 6, "TL%": 66, "T2 A": 7, "T2 CI": 16, "T2%": 43, "T3 A": 1, "T3 CI": 7, "T3%": 14, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "PABLO LUQUE VAN DER KNOOP", "PJ": 7, "MIN": 90, "MIN/P": 13, "PTS": 15, "PTS/P": 2, "TL A": 4, "TL CI": 8, "TL%": 50, "T2 A": 4, "T2 CI": 17, "T2%": 23, "T3 A": 1, "T3 CI": 5, "T3%": 20, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ALEJANDRO POLO GOLLINI", "PJ": 4, "MIN": 32, "MIN/P": 8, "PTS": 10, "PTS/P": 3, "TL A": 0, "TL CI": 0, "TL%": 0, "T2 A": 2, "T2 CI": 5, "T2%": 40, "T3 A": 2, "T3 CI": 4, "T3%": 50, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "SIMON MORITZ MEUSER", "PJ": 2, "MIN": 52, "MIN/P": 26, "PTS": 9, "PTS/P": 5, "TL A": 3, "TL CI": 8, "TL%": 37, "T2 A": 3, "T2 CI": 8, "T2%": 37, "T3 A": 0, "T3 CI": 1, "T3%": 0, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "TOMEU FROILAN ARNAU", "PJ": 8, "MIN": 55, "MIN/P": 7, "PTS": 8, "PTS/P": 1, "TL A": 2, "TL CI": 4, "TL%": 50, "T2 A": 0, "T2 CI": 8, "T2%": 0, "T3 A": 2, "T3 CI": 4, "T3%": 50, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "MIQUEL JULIA ALOY FRAU", "PJ": 3, "MIN": 26, "MIN/P": 9, "PTS": 6, "PTS/P": 2, "TL A": 0, "TL CI": 0, "TL%": 0, "T2 A": 3, "T2 CI": 7, "T2%": 42, "T3 A": 0, "T3 CI": 0, "T3%": 0, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "MARC PLANAS NADAL", "PJ": 2, "MIN": 14, "MIN/P": 7, "PTS": 2, "PTS/P": 1, "TL A": 0, "TL CI": 1, "TL%": 0, "T2 A": 1, "T2 CI": 1, "T2%": 100, "T3 A": 0, "T3 CI": 0, "T3%": 0, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ELOY CABRERA CAÑETE", "PJ": 1, "MIN": 12, "MIN/P": 12, "PTS": 0, "PTS/P": 0, "TL A": 0, "TL CI": 0, "TL%": 0, "T2 A": 0, "T2 CI": 0, "T2%": 0, "T3 A": 0, "T3 CI": 0, "T3%": 0, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ENRIC FIGUEROLA MOLINA", "PJ": 1, "MIN": 4, "MIN/P": 4, "PTS": 0, "PTS/P": 0, "TL A": 0, "TL CI": 0, "TL%": 0, "T2 A": 0, "T2 CI": 0, "T2%": 0, "T3 A": 0, "T3 CI": 0, "T3%": 0, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "JORGE LOZANO BARRIO", "PJ": 6, "MIN": 47, "MIN/P": 8, "PTS": 0, "PTS/P": 0, "TL A": 0, "TL CI": 0, "TL%": 0, "T2 A": 0, "T2 CI": 1, "T2%": 0, "T3 A": 0, "T3 CI": 0, "T3%": 0, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 }
+    ];
+
+    const realDataB = [
+      { "Nom": "ANGEL VERDERA BARCELO", "PJ": 7, "MIN": 172, "MIN/P": 25, "PTS": 55, "PTS/P": 8, "TL A": 15, "TL CI": 30, "TL%": 50, "T2 A": 14, "T2 CI": 46, "T2%": 30, "T3 A": 4, "T3 CI": 18, "T3%": 22, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ADAY SANCHEZ VILLALONGA", "PJ": 7, "MIN": 121, "MIN/P": 17, "PTS": 54, "PTS/P": 8, "TL A": 6, "TL CI": 13, "TL%": 46, "T2 A": 15, "T2 CI": 41, "T2%": 36, "T3 A": 6, "T3 CI": 16, "T3%": 37, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ENRIC FIGUEROLA MOLINA", "PJ": 6, "MIN": 117, "MIN/P": 20, "PTS": 51, "PTS/P": 9, "TL A": 1, "TL CI": 3, "TL%": 33, "T2 A": 10, "T2 CI": 18, "T2%": 55, "T3 A": 10, "T3 CI": 29, "T3%": 34, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ALEJANDRO POLO GOLLINI", "PJ": 8, "MIN": 174, "MIN/P": 22, "PTS": 48, "PTS/P": 6, "TL A": 6, "TL CI": 12, "TL%": 50, "T2 A": 12, "T2 CI": 43, "T2%": 27, "T3 A": 6, "T3 CI": 21, "T3%": 28, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "MARC PLANAS NADAL", "PJ": 8, "MIN": 153, "MIN/P": 19, "PTS": 38, "PTS/P": 5, "TL A": 2, "TL CI": 8, "TL%": 25, "T2 A": 12, "T2 CI": 29, "T2%": 41, "T3 A": 4, "T3 CI": 21, "T3%": 19, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "TOMEU FROILAN ARNAU", "PJ": 7, "MIN": 139, "MIN/P": 20, "PTS": 36, "PTS/P": 5, "TL A": 1, "TL CI": 3, "TL%": 33, "T2 A": 13, "T2 CI": 23, "T2%": 56, "T3 A": 3, "T3 CI": 22, "T3%": 13, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ELOY CABRERA CAÑETE", "PJ": 7, "MIN": 145, "MIN/P": 21, "PTS": 35, "PTS/P": 5, "TL A": 3, "TL CI": 5, "TL%": 60, "T2 A": 13, "T2 CI": 29, "T2%": 44, "T3 A": 2, "T3 CI": 13, "T3%": 15, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ADRIÀ GUASP ALZANILLAS", "PJ": 3, "MIN": 52, "MIN/P": 17, "PTS": 29, "PTS/P": 10, "TL A": 5, "TL CI": 7, "TL%": 71, "T2 A": 9, "T2 CI": 24, "T2%": 37, "T3 A": 2, "T3 CI": 13, "T3%": 15, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "JORGE LOZANO BARRIO", "PJ": 8, "MIN": 164, "MIN/P": 21, "PTS": 29, "PTS/P": 4, "TL A": 2, "TL CI": 4, "TL%": 50, "T2 A": 12, "T2 CI": 25, "T2%": 48, "T3 A": 1, "T3 CI": 6, "T3%": 16, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "TOMAS MATEU CIVERA", "PJ": 8, "MIN": 125, "MIN/P": 16, "PTS": 20, "PTS/P": 3, "TL A": 2, "TL CI": 2, "TL%": 100, "T2 A": 6, "T2 CI": 12, "T2%": 50, "T3 A": 2, "T3 CI": 12, "T3%": 16, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ARNAU FONTANET PIZA", "PJ": 8, "MIN": 74, "MIN/P": 9, "PTS": 15, "PTS/P": 2, "TL A": 2, "TL CI": 5, "TL%": 40, "T2 A": 5, "T2 CI": 8, "T2%": 62, "T3 A": 1, "T3 CI": 5, "T3%": 20, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "LLUIS SOLIVELLAS PRATS", "PJ": 8, "MIN": 80, "MIN/P": 10, "PTS": 11, "PTS/P": 1, "TL A": 2, "TL CI": 4, "TL%": 50, "T2 A": 3, "T2 CI": 12, "T2%": 25, "T3 A": 1, "T3 CI": 3, "T3%": 33, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 },
+      { "Nom": "ANDREU CAMPINS ORTIGOSA", "PJ": 7, "MIN": 84, "MIN/P": 12, "PTS": 10, "PTS/P": 1, "TL A": 1, "TL CI": 4, "TL%": 25, "T2 A": 3, "T2 CI": 7, "T2%": 42, "T3 A": 1, "T3 CI": 8, "T3%": 12, "REB": 0, "AST": 0, "STL": 0, "BLK FAV": 0, "BLK CON": 0, "TOV": 0, "FC": 0, "FR": 0 }
+    ];
+
+    /* ========= Esdeveniments ========= */
+    function bindEvents() {
+      document.getElementById('fileInputA').addEventListener('change', (ev) => { const f = ev.target.files?.[0]; if (f) readFileForTeam(f, 'A'); });
+      document.getElementById('fileInputB').addEventListener('change', (ev) => { const f = ev.target.files?.[0]; if (f) readFileForTeam(f, 'B'); });
+
+      document.getElementById('exportPdf').addEventListener('click', exportToPDF);
+      document.getElementById('downloadProcessed').addEventListener('click', downloadCSVProcessed);
+
+      document.getElementById('teamView').addEventListener('change', () => { rebuildAndRender(); computeTAGGLineups(); });
+      document.getElementById('filterPlayer').addEventListener('change', applyFilters);
+
+      document.getElementById('btnSortPts').addEventListener('click', () => { rows.sort((a, b) => b.PTS - a.PTS); renderAll(); });
+      document.getElementById('sortPts').addEventListener('click', () => { rows.sort((a, b) => b.PTS - a.PTS); renderAll(); });
+      document.getElementById('sortMin').addEventListener('click', () => { rows.sort((a, b) => b.MIN - a.MIN); renderAll(); });
+      document.getElementById('sortVal').addEventListener('click', () => { rows.sort((a, b) => b['VAL'] - a['VAL']); renderAll(); });
+      document.getElementById('sortVal2').addEventListener('click', () => { rows.sort((a, b) => b['VAL'] - a['VAL']); renderAll(); });
+
+      document.getElementById("btnComputeTAGG").addEventListener("click", computeTAGGLineups);
+
+      // Mòdul avançat
+      document.getElementById("toggleTAGGAdvanced").addEventListener("click", () => {
+        el("#taggAdvancedPanel").classList.toggle("hidden");
+      });
+      document.getElementById("btnComputeAdvancedTAGG").addEventListener("click", computeAdvancedTAGG);
+
+      // Selector de comparatives i radar
+      document.addEventListener('change', (e) => {
+        if (e.target && (e.target.id === 'cmpA' || e.target.id === 'cmpB')) renderCompare();
+        if (e.target && e.target.id === 'radarPlayer') renderRadar();
+        if (e.target && e.target.classList.contains('lineup-sel')) calculateLineupStats();
+      });
+
+      // Lineup Builder Init
+      // populateLineupSelectors(); // Moved to init()
+
+
+
+      // Botó per recarregar les dades reals si es vol
+      document.getElementById('loadSample').textContent = "Recarregar Dades Oficials";
+      document.getElementById('loadSample').addEventListener('click', () => {
+        rowsA_master = normalizeRows(realDataA, 'A');
+        rowsB_master = normalizeRows(realDataB, 'B');
+        rebuildAndRender();
+        computeTAGGLineups();
+      });
+    }
+
+    /* ========= Inici ========= */
+    (function init() {
+      try {
+        bindEvents();
+        // Carrega automàticament les dades reals extretes
+        console.log("Loading data...");
+        rowsA_master = normalizeRows(realDataA, 'A');
+        rowsB_master = normalizeRows(realDataB, 'B');
+        console.log("Data normalized", rowsA_master, rowsB_master);
+        rebuildAndRender();
+        computeTAGGLineups();
+        populateLineupSelectors(); // Populate selectors after data load
+        console.log("Dashboard ready");
+      } catch (e) {
+        console.error(e);
+        alert("Error initializing dashboard: " + e.message + "\n" + e.stack);
+      }
+    })();
+  </script>
+</body>
+
+</html>
