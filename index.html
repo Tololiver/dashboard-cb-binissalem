@@ -82,6 +82,71 @@
       font-size: 11px;
       opacity: .7
     }
+
+    .hidden-content {
+      display: none;
+    }
+
+    /* Light Mode Overrides */
+    body.light-theme {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    body.light-theme .card,
+    body.light-theme .kpi,
+    body.light-theme canvas {
+      background: #ffffff;
+      border-color: #e2e8f0;
+      color: #0f172a;
+    }
+
+    body.light-theme .chip {
+      background: #e2e8f0;
+      border-color: #cbd5e1;
+      color: #0f172a;
+    }
+
+    body.light-theme select,
+    body.light-theme input {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      color: #0f172a;
+    }
+
+    body.light-theme table thead th {
+      background: #f8fafc;
+      color: #334155;
+    }
+
+    body.light-theme tr.odd\:bg-slate-900\/30:nth-child(odd) {
+      background-color: #f1f5f9;
+    }
+
+    body.light-theme .text-white {
+      color: #0f172a !important;
+    }
+
+    /* Header exception for light mode */
+    body.light-theme header.accent .text-white {
+      color: #ffffff !important;
+    }
+
+    /* Social Card Template (Hidden) */
+    #socialCardTemplate {
+      width: 600px;
+      height: 800px;
+      position: fixed;
+      left: -9999px;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      font-family: sans-serif;
+    }
   </style>
 </head>
 
@@ -112,6 +177,7 @@
         </label>
         <button id="exportPdf" class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">🧾 Exportar
           PDF</button>
+        <button id="themeToggle" class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">🌓 Tema</button>
       </div>
     </div>
   </header>
@@ -136,6 +202,10 @@
         <select id="filterPlayer" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
           <option value="">Tots</option>
         </select>
+        <div class="mt-3 flex items-center gap-2">
+          <input type="checkbox" id="per40Toggle" class="w-4 h-4">
+          <label for="per40Toggle" class="text-sm cursor-pointer select-none">Estadístiques per 40 min</label>
+        </div>
       </div>
 
       <div class="card rounded-2xl p-4">
@@ -161,6 +231,9 @@
           <button id="sortVal" class="px-3 py-2 rounded-xl chip">Ordenar taula per VAL</button>
           <button id="loadSample" class="px-3 py-2 rounded-xl chip">Provar exemple A+B</button>
           <button id="downloadProcessed" class="px-3 py-2 rounded-xl chip">Descarregar CSV</button>
+          <button id="btnSocial"
+            class="px-3 py-2 rounded-xl chip bg-purple-600 hover:bg-purple-500 text-white border-none">📸 Generar
+            Fitxa</button>
         </div>
       </div>
     </section>
@@ -337,7 +410,12 @@
           <h3 class="font-semibold">Radar — Perfil del jugador</h3>
           <div class="text-xs opacity-70">Escull un jugador</div>
         </div>
-        <select id="radarPlayer" class="bg-transparent border border-slate-600 rounded-xl p-2 mb-3 w-full"></select>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <select id="radarPlayer" class="bg-transparent border border-slate-600 rounded-xl p-2 w-full"></select>
+          <select id="radarPlayer2" class="bg-transparent border border-slate-600 rounded-xl p-2 w-full">
+            <option value="">-- Comparar amb... --</option>
+          </select>
+        </div>
         <canvas id="chartRadar" height="260"></canvas>
       </div>
     </section>
@@ -476,6 +554,38 @@
 
   </main>
   <!-- 🔼🔼 FI DE LA PART 2 — A continuació, PART 3 amb tot el JavaScript i la integració 🔼🔼 -->
+
+  <!-- Social Card Template (Hidden) -->
+  <div id="socialCardTemplate">
+    <div class="text-center w-full">
+      <h1 class="text-4xl font-bold mb-2">CB BINISSALEM</h1>
+      <h2 class="text-2xl opacity-80">TEMPORADA 25-26</h2>
+    </div>
+
+    <div class="flex flex-col items-center">
+      <div class="text-6xl font-black mb-4" id="cardName">NOM JUGADOR</div>
+      <div class="text-2xl opacity-70 mb-8" id="cardTeam">EQUIP A</div>
+
+      <div class="grid grid-cols-3 gap-8 w-full text-center">
+        <div class="bg-white/10 p-6 rounded-2xl">
+          <div class="text-5xl font-bold mb-2" id="cardPts">0</div>
+          <div class="text-xl uppercase tracking-widest opacity-60">PUNTS</div>
+        </div>
+        <div class="bg-white/10 p-6 rounded-2xl">
+          <div class="text-5xl font-bold mb-2" id="cardVal">0</div>
+          <div class="text-xl uppercase tracking-widest opacity-60">VAL</div>
+        </div>
+        <div class="bg-white/10 p-6 rounded-2xl">
+          <div class="text-5xl font-bold mb-2" id="cardT3">0%</div>
+          <div class="text-xl uppercase tracking-widest opacity-60">T3%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-full text-center opacity-50 text-sm">
+      Generat amb el Dashboard Oficial
+    </div>
+  </div>
 
   <script>
     /* ========= Utils ========= */
@@ -1139,6 +1249,178 @@
         alert("Error initializing dashboard: " + e.message + "\n" + e.stack);
       }
       // Login Logic
+      /* ========= ENHANCEMENTS LOGIC ========= */
+
+      // 1. Theme Toggle
+      const themeToggleBtn = document.getElementById('themeToggle');
+      themeToggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('light-theme');
+        const isLight = document.body.classList.contains('light-theme');
+        themeToggleBtn.textContent = isLight ? '🌑 Tema' : '🌓 Tema';
+        // Update charts color
+        const textColor = isLight ? '#0f172a' : '#cbd5e1';
+        Object.values(charts).forEach(c => {
+          if (c && c.options && c.options.scales) {
+            if (c.options.scales.x) c.options.scales.x.ticks.color = textColor;
+            if (c.options.scales.y) c.options.scales.y.ticks.color = textColor;
+            if (c.options.scales.r) c.options.scales.r.pointLabels.color = textColor;
+            c.update();
+          }
+        });
+      });
+
+      // 2. Per 40m Toggle
+      let per40Mode = false;
+      document.getElementById('per40Toggle').addEventListener('change', (e) => {
+        per40Mode = e.target.checked;
+        rebuildAndRender();
+      });
+
+      // Update normalizeRows to handle Per 40m projection dynamically? 
+      // Better to do it in renderTable/Charts to avoid mutating master data.
+      // We will modify the 'rows' variable before rendering.
+
+      const originalRenderAll = renderAll;
+      renderAll = function () {
+        if (per40Mode) {
+          // Create a projected copy of rows for display
+          rows = rows.map(r => {
+            const min = r.MIN;
+            if (!min || min === 0) return r;
+            const factor = 40 / min;
+            return {
+              ...r,
+              PTS: +(r.PTS * factor).toFixed(1),
+              'T2 A': +(r['T2 A'] * factor).toFixed(1),
+              'T2 CI': +(r['T2 CI'] * factor).toFixed(1),
+              'T3 A': +(r['T3 A'] * factor).toFixed(1),
+              'T3 CI': +(r['T3 CI'] * factor).toFixed(1),
+              'TL A': +(r['TL A'] * factor).toFixed(1),
+              'TL CI': +(r['TL CI'] * factor).toFixed(1),
+              'VAL': +(r['VAL'] * factor).toFixed(1),
+              'REB': +(r['REB'] * factor).toFixed(1),
+              'AST': +(r['AST'] * factor).toFixed(1),
+              'STL': +(r['STL'] * factor).toFixed(1),
+              'BLK FAV': +(r['BLK FAV'] * factor).toFixed(1),
+              // Percentages stay same
+            };
+          });
+        }
+        originalRenderAll();
+      };
+
+      // 3. Advanced Radar (2 Players)
+      // Override renderRadar
+      const originalRenderRadar = renderRadar;
+      renderRadar = function () {
+        const sel1 = el('#radarPlayer');
+        const sel2 = el('#radarPlayer2');
+
+        if (!sel1 || !sel1.value) { if (charts.chartRadar) charts.chartRadar.destroy(); return; }
+
+        const R1 = findByName(sel1.value);
+        if (!R1) { if (charts.chartRadar) charts.chartRadar.destroy(); return; }
+
+        const labels = ['PTS', 'MIN', 'T2%', 'T3%', 'TL%', 'VAL'];
+        const maxVals = {
+          'PTS': Math.max(...rowsMaster.map(r => r.PTS), 1),
+          'MIN': Math.max(...rowsMaster.map(r => r.MIN), 1),
+          'T2%': 100, 'T3%': 100, 'TL%': 100,
+          'VAL': Math.max(...rowsMaster.map(r => r['VAL']), 1)
+        };
+
+        const getNorm = (p) => {
+          const raw = { 'PTS': p.PTS, 'MIN': p.MIN, 'T2%': p['T2%'], 'T3%': p['T3%'], 'TL%': p['TL%'], 'VAL': p['VAL'] };
+          return labels.map(k => +(100 * raw[k] / maxVals[k]).toFixed(1));
+        };
+
+        const datasets = [{
+          label: `${R1.Nom}`,
+          data: getNorm(R1),
+          fill: true,
+          backgroundColor: 'rgba(124,92,255,0.25)',
+          borderColor: '#7c5cff'
+        }];
+
+        if (sel2 && sel2.value) {
+          const R2 = findByName(sel2.value);
+          if (R2) {
+            datasets.push({
+              label: `${R2.Nom}`,
+              data: getNorm(R2),
+              fill: true,
+              backgroundColor: 'rgba(54, 194, 207, 0.25)',
+              borderColor: '#36c2cf'
+            });
+          }
+        }
+
+        if (charts.chartRadar) charts.chartRadar.destroy();
+        charts.chartRadar = new Chart(el('#chartRadar'), {
+          type: 'radar',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: true } },
+            scales: {
+              r: {
+                suggestedMin: 0, suggestedMax: 100,
+                ticks: { display: false },
+                pointLabels: { color: document.body.classList.contains('light-theme') ? '#0f172a' : '#cbd5e1' }
+              }
+            }
+          }
+        });
+      };
+
+      // Update fillSelectOptions to populate radarPlayer2
+      const originalFillSelectOptions = fillSelectOptions;
+      fillSelectOptions = function () {
+        originalFillSelectOptions();
+        const players = Array.from(new Set(rowsMaster.map(r => r.Nom))).sort();
+        const s2 = document.getElementById('radarPlayer2');
+        if (s2) {
+          s2.innerHTML = '<option value="">-- Comparar amb... --</option>' + players.map(p => `<option>${p}</option>`).join('');
+        }
+      };
+
+      // 4. Social Export
+      document.getElementById('btnSocial').addEventListener('click', async () => {
+        const pName = document.getElementById('filterPlayer').value;
+        if (!pName) { alert("Primer selecciona un jugador al filtre 'Jugador'!"); return; }
+
+        const p = rowsMaster.find(r => r.Nom === pName);
+        if (!p) return;
+
+        // Fill Template
+        el('#cardName').textContent = p.Nom;
+        el('#cardTeam').textContent = p.Team === 'A' ? 'CB BINISSALEM BLAU' : (p.Team === 'B' ? 'CB BINISSALEM ROSA' : 'CB BINISSALEM');
+        el('#cardPts').textContent = p.PTS;
+        el('#cardVal').textContent = p.VAL;
+        el('#cardT3').textContent = p['T3%'] + '%';
+
+        // Capture
+        const node = document.getElementById('socialCardTemplate');
+        // Temporarily move on screen but invisible? No, html2canvas works off-screen mostly but needs display block.
+        // It is fixed left -9999px, so it is rendered.
+
+        try {
+          const canvas = await html2canvas(node, { backgroundColor: '#0f172a', scale: 2 });
+          const link = document.createElement('a');
+          link.download = `Fitxa_${p.Nom}.png`;
+          link.href = canvas.toDataURL();
+          link.click();
+        } catch (err) {
+          console.error(err);
+          alert("Error generant la imatge: " + err.message);
+        }
+      });
+
+      // Add listener for radarPlayer2
+      document.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'radarPlayer2') renderRadar();
+      });
+
     })();
   </script>
 </body>
