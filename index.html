@@ -1074,5 +1074,91 @@
       document.getElementById('sortVal').addEventListener('click', () => { rows.sort((a, b) => b['VAL'] - a['VAL']); renderAll(); });
       document.getElementById('sortVal2').addEventListener('click', () => { rows.sort((a, b) => b['VAL'] - a['VAL']); renderAll(); });
 
-      d
-A
+      document.getElementById("btnComputeTAGG").addEventListener("click", computeTAGGLineups);
+
+      // Mòdul avançat
+      document.getElementById("toggleTAGGAdvanced").addEventListener("click", () => {
+        el("#taggAdvancedPanel").classList.toggle("hidden");
+      });
+      document.getElementById("btnComputeAdvancedTAGG").addEventListener("click", computeAdvancedTAGG);
+
+      // Selector de comparatives i radar
+      document.addEventListener('change', (e) => {
+        if (e.target && (e.target.id === 'cmpA' || e.target.id === 'cmpB')) renderCompare();
+        if (e.target && e.target.id === 'radarPlayer') renderRadar();
+        if (e.target && e.target.classList.contains('lineup-sel')) calculateLineupStats();
+      });
+
+      // Lineup Builder Init
+      // populateLineupSelectors(); // Moved to init()
+
+
+
+      // Botó per recarregar les dades reals si es vol
+      document.getElementById('loadSample').textContent = "Recarregar Dades Oficials";
+      document.getElementById('loadSample').addEventListener('click', () => {
+        rowsA_master = normalizeRows(realDataA, 'A');
+        rowsB_master = normalizeRows(realDataB, 'B');
+        rebuildAndRender();
+        computeTAGGLineups();
+      });
+    }
+
+    /* ========= Inici ========= */
+    (function init() {
+      try {
+        bindEvents();
+        // Carrega automàticament les dades reals extretes
+        console.log("Loading data...");
+        rowsA_master = normalizeRows(realDataA, 'A');
+        rowsB_master = normalizeRows(realDataB, 'B');
+        console.log("Data normalized", rowsA_master, rowsB_master);
+        rebuildAndRender();
+        computeTAGGLineups();
+        populateLineupSelectors(); // Populate selectors after data load
+        console.log("Dashboard ready");
+      } catch (e) {
+        console.error(e);
+        alert("Error initializing dashboard: " + e.message + "\n" + e.stack);
+      }
+      // Login Logic
+      // Login Logic
+      const handleLogin = () => {
+        try {
+          const uInput = document.getElementById('loginUser');
+          const pInput = document.getElementById('loginPass');
+          if (!uInput || !pInput) return;
+
+          const u = uInput.value.trim();
+          const p = pInput.value.trim();
+
+          // Case insensitive username, sensitive password
+          if (u.toLowerCase() === 'admin' && p === 'binissalem2025') {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('mainContent').classList.remove('hidden-content');
+          } else {
+            document.getElementById('loginError').classList.remove('hidden');
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Login Error: " + err.message);
+        }
+      };
+
+      const btnLogin = document.getElementById('btnLogin');
+      if (btnLogin) btnLogin.addEventListener('click', handleLogin);
+
+      const handleEnter = (e) => {
+        if (e.key === 'Enter') handleLogin();
+      };
+
+      const uField = document.getElementById('loginUser');
+      const pField = document.getElementById('loginPass');
+      if (uField) uField.addEventListener('keydown', handleEnter);
+      if (pField) pField.addEventListener('keydown', handleEnter);
+
+    })();
+  </script>
+</body>
+
+</html>
