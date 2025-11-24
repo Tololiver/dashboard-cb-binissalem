@@ -83,366 +83,417 @@
       opacity: .7
     }
   </style>
+  <style>
+    /* ... existing styles ... */
+    #loginOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0b0f1a;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .login-box {
+      background: #12182a;
+      padding: 2rem;
+      border-radius: 1rem;
+      border: 1px solid #1f2a44;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .hidden-content {
+      display: none;
+    }
+  </style>
 </head>
 
 <body class="min-h-screen">
 
-  <!-- HEADER -->
-  <header class="accent text-white py-8">
-    <div class="max-w-7xl mx-auto px-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-      <div>
-        <h1 class="text-3xl md:text-4xl font-bold">
-          CB Binissalem — Temporada 25-26<br>
-          Sènior Insular Masculí (Doble Equip · Local)
-        </h1>
-        <p class="opacity-90">Carrega dos Excels (Equip A i Equip B) i visualitza A, B o Tots separats.</p>
-      </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <label class="inline-flex items-center gap-3 cursor-pointer">
-          <input id="fileInputA" type="file" accept=".xlsx,.xls,.csv" class="hidden">
-          <span class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">📤 Pujar Excel — <b>Equip
-              A</b></span>
-        </label>
-        <label class="inline-flex items-center gap-3 cursor-pointer">
-          <input id="fileInputB" type="file" accept=".xlsx,.xls,.csv" class="hidden">
-          <span class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">📤 Pujar Excel — <b>Equip
-              B</b></span>
-        </label>
-        <button id="exportPdf" class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">🧾 Exportar
-          PDF</button>
-      </div>
+  <!-- LOGIN OVERLAY -->
+  <div id="loginOverlay">
+    <div class="login-box">
+      <h2 class="text-2xl font-bold mb-6 text-white">Accés al Dashboard</h2>
+      <input type="text" id="loginUser" placeholder="Usuari"
+        class="w-full bg-slate-800 border border-slate-600 rounded-xl p-3 mb-4 text-white focus:outline-none focus:border-blue-500">
+      <input type="password" id="loginPass" placeholder="Contrasenya"
+        class="w-full bg-slate-800 border border-slate-600 rounded-xl p-3 mb-6 text-white focus:outline-none focus:border-blue-500">
+      <button id="btnLogin"
+        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition">Entrar</button>
+      <p id="loginError" class="text-red-400 text-sm mt-4 hidden">Credencials incorrectes</p>
     </div>
-  </header>
+  </div>
 
-  <!-- CONTINGUT -->
-  <main id="dashboardRoot" class="max-w-7xl mx-auto px-6 py-8">
-    <!-- 🔽🔽 CONTINUA A LA PART 2 (seccions del dashboard, taules, gràfiques i mòdul TAG+G) 🔽🔽 -->
-    <!-- Controls i filtres -->
-    <section class="grid gap-4 md:grid-cols-4 mb-8">
-      <div class="card rounded-2xl p-4">
-        <div class="text-sm uppercase tracking-widest opacity-60">Vista d’equip</div>
-        <select id="teamView" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
-          <option value="A">Equip A</option>
-          <option value="B">Equip B</option>
-          <option value="ALL">Tots (separat)</option>
-        </select>
-        <div class="hint mt-2">En “Tots” no es sumen jugadors duplicats: es mostren com A i com B.</div>
-      </div>
+  <!-- WRAPPER FOR MAIN CONTENT (Initially Hidden) -->
+  <div id="mainContent" class="hidden-content">
 
-      <div class="card rounded-2xl p-4">
-        <div class="text-sm uppercase tracking-widest opacity-60">Jugador</div>
-        <select id="filterPlayer" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
-          <option value="">Tots</option>
-        </select>
-      </div>
-
-      <div class="card rounded-2xl p-4">
-        <div class="text-sm uppercase tracking-widest opacity-60">Ordenació rànquings</div>
-        <select id="rankingKey" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
-          <option value="PTS">PTS</option>
-          <option value="MIN">MIN</option>
-          <option value="T2%">T2%</option>
-          <option value="T3%">T3%</option>
-          <option value="TL%">TL%</option>
-          <option value="VAL">VAL</option>
-          <option value="PTS/MIN">PTS/min</option>
-          <option value="VAL/MIN">VAL/min</option>
-          <option value="TIRS">Tirs totals</option>
-        </select>
-        <div class="hint mt-2">Els rànquings usen la vista actual (A/B/Tots).</div>
-      </div>
-
-      <div class="card rounded-2xl p-4">
-        <div class="text-sm uppercase tracking-widest opacity-60">Accions</div>
-        <div class="mt-2 flex gap-2 flex-wrap">
-          <button id="btnSortPts" class="px-3 py-2 rounded-xl chip">Ordenar taula per PTS</button>
-          <button id="sortVal" class="px-3 py-2 rounded-xl chip">Ordenar taula per VAL</button>
-          <button id="loadSample" class="px-3 py-2 rounded-xl chip">Provar exemple A+B</button>
-          <button id="downloadProcessed" class="px-3 py-2 rounded-xl chip">Descarregar CSV</button>
+    <!-- HEADER -->
+    <header class="accent text-white py-8">
+      <div class="max-w-7xl mx-auto px-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 class="text-3xl md:text-4xl font-bold">
+            CB Binissalem — Temporada 25-26<br>
+            Sènior Insular Masculí (Doble Equip · Local)
+          </h1>
+          <p class="opacity-90">Carrega dos Excels (Equip A i Equip B) i visualitza A, B o Tots separats.</p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <label class="inline-flex items-center gap-3 cursor-pointer">
+            <input id="fileInputA" type="file" accept=".xlsx,.xls,.csv" class="hidden">
+            <span class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">📤 Pujar Excel — <b>Equip
+                A</b></span>
+          </label>
+          <label class="inline-flex items-center gap-3 cursor-pointer">
+            <input id="fileInputB" type="file" accept=".xlsx,.xls,.csv" class="hidden">
+            <span class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">📤 Pujar Excel — <b>Equip
+                B</b></span>
+          </label>
+          <button id="exportPdf" class="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition">🧾 Exportar
+            PDF</button>
         </div>
       </div>
-    </section>
+    </header>
 
-    <!-- KPIs -->
-    <section class="grid gap-4 md:grid-cols-6 mb-8">
-      <div class="kpi rounded-2xl p-4 text-center">
-        <div class="text-sm opacity-60">Punts totals</div>
-        <div id="kpiPts" class="text-2xl font-bold">–</div>
-      </div>
-      <div class="kpi rounded-2xl p-4 text-center">
-        <div class="text-sm opacity-60">Minuts totals</div>
-        <div id="kpiMin" class="text-2xl font-bold">–</div>
-      </div>
-      <div class="kpi rounded-2xl p-4 text-center">
-        <div class="text-sm opacity-60">Tirs intentats</div>
-        <div id="kpiShots" class="text-2xl font-bold">–</div>
-      </div>
-      <div class="kpi rounded-2xl p-4 text-center">
-        <div class="text-sm opacity-60">% global encert</div>
-        <div id="kpiAcc" class="text-2xl font-bold">–</div>
-      </div>
-      <div class="kpi rounded-2xl p-4 text-center">
-        <div class="text-sm opacity-60">PTS/min</div>
-        <div id="kpiPtsMin" class="text-2xl font-bold">–</div>
-      </div>
-      <div class="kpi rounded-2xl p-4 text-center">
-        <div class="text-sm opacity-60">VAL/min</div>
-        <div id="kpiValMin" class="text-2xl font-bold">–</div>
-      </div>
-    </section>
-
-    <!-- Taula principal -->
-    <section class="card rounded-2xl p-5 mb-8">
-      <div class="flex items-center justify-between gap-4 mb-4">
-        <h2 class="text-xl font-semibold">Taula de jugadors</h2>
-        <div class="flex gap-2 text-sm">
-          <button id="sortPts" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per PTS</button>
-          <button id="sortMin" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per MIN</button>
-          <button id="sortVal2" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per VAL</button>
+    <!-- CONTINGUT -->
+    <main id="dashboardRoot" class="max-w-7xl mx-auto px-6 py-8">
+      <!-- 🔽🔽 CONTINUA A LA PART 2 (seccions del dashboard, taules, gràfiques i mòdul TAG+G) 🔽🔽 -->
+      <!-- Controls i filtres -->
+      <section class="grid gap-4 md:grid-cols-4 mb-8">
+        <div class="card rounded-2xl p-4">
+          <div class="text-sm uppercase tracking-widest opacity-60">Vista d’equip</div>
+          <select id="teamView" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
+            <option value="A">Equip A</option>
+            <option value="B">Equip B</option>
+            <option value="ALL">Tots (separat)</option>
+          </select>
+          <div class="hint mt-2">En “Tots” no es sumen jugadors duplicats: es mostren com A i com B.</div>
         </div>
-      </div>
-      <div class="overflow-auto rounded-2xl border border-slate-700">
-        <table id="dataTable" class="min-w-full text-sm">
-          <thead>
-            <tr class="text-left">
-              <th class="px-3 py-2">Nom</th>
-              <th class="px-3 py-2">Equip</th>
-              <th class="px-3 py-2">PJ</th>
-              <th class="px-3 py-2">MIN</th>
-              <th class="px-3 py-2">MIN/P</th>
-              <th class="px-3 py-2">PTS</th>
-              <th class="px-3 py-2">PTS/P</th>
-              <th class="px-3 py-2">TL A</th>
-              <th class="px-3 py-2">TL CI</th>
-              <th class="px-3 py-2">TL%</th>
-              <th class="px-3 py-2">T2 A</th>
-              <th class="px-3 py-2">T2 CI</th>
-              <th class="px-3 py-2">T2%</th>
-              <th class="px-3 py-2">T3 A</th>
-              <th class="px-3 py-2">T3 CI</th>
-              <th class="px-3 py-2">T3%</th>
-              <th class="px-3 py-2">%GLOBAL</th>
-              <th class="px-3 py-2">VAL</th>
-              <th class="px-3 py-2">PTS/MIN</th>
-              <th class="px-3 py-2">VAL/MIN</th>
-              <th class="px-3 py-2">Volum total (T2+T3+TL)</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="hint mt-2">Barra de volum: <span style="color:#60a5fa">T2 CI</span> · <span style="color:#34d399">T3
-          CI</span> · <span style="color:#fbbf24">TL CI</span>.</div>
-    </section>
 
-    <!-- Gràfiques bàsiques -->
-    <section class="grid gap-6 md:grid-cols-2 mb-8">
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Punts totals per jugador</h3><canvas id="chartPts" height="240"></canvas>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Minuts totals per jugador</h3><canvas id="chartMin" height="240"></canvas>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Percentatge T2 (%)</h3><canvas id="chartT2" height="240"></canvas>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Percentatge T3 (%)</h3><canvas id="chartT3" height="240"></canvas>
-      </div>
-      <div class="card rounded-2xl p-5 md:col-span-2">
-        <h3 class="font-semibold mb-3">Composició de tirs (encerts vs intents)</h3><canvas id="chartShotsStack"
-          height="260"></canvas>
-      </div>
-    </section>
-
-    <!-- TOPS i Volum -->
-    <section class="grid gap-6 md:grid-cols-2 mb-8">
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — Valoració (FEB)</h3><canvas id="chartTopVal" height="240"></canvas>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — PTS/min</h3><canvas id="chartTopPtsMin" height="240"></canvas>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — VAL/min</h3><canvas id="chartTopValMin" height="240"></canvas>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — % Global</h3><canvas id="chartTopAcc" height="240"></canvas>
-      </div>
-
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">TOP 5 — T2 anotats</h3><canvas id="chartTopT2F" height="240"></canvas>
-        <ol id="rankT2Made" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">TOP 5 — T3 anotats</h3><canvas id="chartTopT3F" height="240"></canvas>
-        <ol id="rankT3Made" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">TOP 5 — TL anotats</h3><canvas id="chartTopTLLF" height="240"></canvas>
-        <ol id="rankTLMade" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-
-      <div class="card rounded-2xl p-5 md:col-span-2">
-        <h3 class="font-semibold mb-3">Volum total de tir (T2 CI + T3 CI + TL CI)</h3><canvas id="chartShotVolume"
-          height="260"></canvas>
-      </div>
-    </section>
-
-    <!-- Rànquings en llista -->
-    <section class="grid gap-6 md:grid-cols-3 mb-12">
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — Punts</h3>
-        <ol id="rankPts" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — Minuts</h3>
-        <ol id="rankMin" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — Tirs totals</h3>
-        <ol id="rankShots" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — T2%</h3>
-        <ol id="rankT2" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — T3%</h3>
-        <ol id="rankT3" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <h3 class="font-semibold mb-3">Top 5 — TL%</h3>
-        <ol id="rankTL" class="list-decimal ml-6 mt-3 space-y-1"></ol>
-      </div>
-    </section>
-
-    <!-- Comparativa i Radar -->
-    <section class="grid gap-6 md:grid-cols-2 mb-12">
-      <div class="card rounded-2xl p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="font-semibold">Comparativa Jugador vs Jugador</h3>
-          <div class="text-xs opacity-70">Selecciona dos jugadors</div>
+        <div class="card rounded-2xl p-4">
+          <div class="text-sm uppercase tracking-widest opacity-60">Jugador</div>
+          <select id="filterPlayer" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
+            <option value="">Tots</option>
+          </select>
         </div>
-        <div class="grid grid-cols-2 gap-2 mb-3">
-          <select id="cmpA" class="bg-transparent border border-slate-600 rounded-xl p-2"></select>
-          <select id="cmpB" class="bg-transparent border border-slate-600 rounded-xl p-2"></select>
+
+        <div class="card rounded-2xl p-4">
+          <div class="text-sm uppercase tracking-widest opacity-60">Ordenació rànquings</div>
+          <select id="rankingKey" class="mt-2 w-full bg-transparent border border-slate-600 rounded-xl p-2">
+            <option value="PTS">PTS</option>
+            <option value="MIN">MIN</option>
+            <option value="T2%">T2%</option>
+            <option value="T3%">T3%</option>
+            <option value="TL%">TL%</option>
+            <option value="VAL">VAL</option>
+            <option value="PTS/MIN">PTS/min</option>
+            <option value="VAL/MIN">VAL/min</option>
+            <option value="TIRS">Tirs totals</option>
+          </select>
+          <div class="hint mt-2">Els rànquings usen la vista actual (A/B/Tots).</div>
         </div>
-        <canvas id="chartCompare" height="260"></canvas>
-      </div>
-      <div class="card rounded-2xl p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="font-semibold">Radar — Perfil del jugador</h3>
-          <div class="text-xs opacity-70">Escull un jugador</div>
+
+        <div class="card rounded-2xl p-4">
+          <div class="text-sm uppercase tracking-widest opacity-60">Accions</div>
+          <div class="mt-2 flex gap-2 flex-wrap">
+            <button id="btnSortPts" class="px-3 py-2 rounded-xl chip">Ordenar taula per PTS</button>
+            <button id="sortVal" class="px-3 py-2 rounded-xl chip">Ordenar taula per VAL</button>
+            <button id="loadSample" class="px-3 py-2 rounded-xl chip">Provar exemple A+B</button>
+            <button id="downloadProcessed" class="px-3 py-2 rounded-xl chip">Descarregar CSV</button>
+          </div>
         </div>
-        <select id="radarPlayer" class="bg-transparent border border-slate-600 rounded-xl p-2 mb-3 w-full"></select>
-        <canvas id="chartRadar" height="260"></canvas>
-      </div>
-    </section>
+      </section>
 
-    <!-- ================== QUINTET PERSONALITZAT (Lineup Builder) ================== -->
-    <section id="customLineup" class="card rounded-2xl p-6 mb-16">
-      <h2 class="text-2xl font-bold mb-4">🛠️ Quintet Personalitzat (Lineup Builder)</h2>
-      <p class="opacity-80 mb-4">Selecciona 5 jugadors (Equip A o B) per veure les estadístiques acumulades del quintet.
-      </p>
-
-      <div class="grid gap-4 md:grid-cols-5 mb-6">
-        <!-- 5 Selectors -->
-        <div><label class="text-xs opacity-60 uppercase">Posició 1</label><select id="slot1"
-            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
-        <div><label class="text-xs opacity-60 uppercase">Posició 2</label><select id="slot2"
-            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
-        <div><label class="text-xs opacity-60 uppercase">Posició 3</label><select id="slot3"
-            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
-        <div><label class="text-xs opacity-60 uppercase">Posició 4</label><select id="slot4"
-            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
-        <div><label class="text-xs opacity-60 uppercase">Posició 5</label><select id="slot5"
-            class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
-      </div>
-
-      <!-- Stats del Quintet -->
-      <div class="grid gap-4 md:grid-cols-4">
-        <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
-          <div class="text-sm opacity-60">Punts Totals</div>
-          <div id="lPts" class="text-xl font-bold text-blue-400">0</div>
+      <!-- KPIs -->
+      <section class="grid gap-4 md:grid-cols-6 mb-8">
+        <div class="kpi rounded-2xl p-4 text-center">
+          <div class="text-sm opacity-60">Punts totals</div>
+          <div id="kpiPts" class="text-2xl font-bold">–</div>
         </div>
-        <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
-          <div class="text-sm opacity-60">% Tir Global (Mitjana)</div>
-          <div id="lAcc" class="text-xl font-bold text-green-400">0%</div>
+        <div class="kpi rounded-2xl p-4 text-center">
+          <div class="text-sm opacity-60">Minuts totals</div>
+          <div id="kpiMin" class="text-2xl font-bold">–</div>
         </div>
-        <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
-          <div class="text-sm opacity-60">T3% (Mitjana)</div>
-          <div id="lT3" class="text-xl font-bold text-purple-400">0%</div>
+        <div class="kpi rounded-2xl p-4 text-center">
+          <div class="text-sm opacity-60">Tirs intentats</div>
+          <div id="kpiShots" class="text-2xl font-bold">–</div>
         </div>
-        <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
-          <div class="text-sm opacity-60">VAL Total</div>
-          <div id="lVal" class="text-xl font-bold text-yellow-400">0</div>
+        <div class="kpi rounded-2xl p-4 text-center">
+          <div class="text-sm opacity-60">% global encert</div>
+          <div id="kpiAcc" class="text-2xl font-bold">–</div>
         </div>
-      </div>
-    </section>
+        <div class="kpi rounded-2xl p-4 text-center">
+          <div class="text-sm opacity-60">PTS/min</div>
+          <div id="kpiPtsMin" class="text-2xl font-bold">–</div>
+        </div>
+        <div class="kpi rounded-2xl p-4 text-center">
+          <div class="text-sm opacity-60">VAL/min</div>
+          <div id="kpiValMin" class="text-2xl font-bold">–</div>
+        </div>
+      </section>
 
-    <!-- ================== QUINTETS TAG+G (Opció C: compacte + avançat) ================== -->
-    <section id="taggLineups" class="card rounded-2xl p-6 mb-16">
-      <h2 class="text-2xl font-bold mb-4">🔷 Quintets Òptims TAG+G</h2>
-      <p class="opacity-80 mb-4">Generats automàticament en base al sistema TAG+G i les estadístiques carregades.</p>
+      <!-- Taula principal -->
+      <section class="card rounded-2xl p-5 mb-8">
+        <div class="flex items-center justify-between gap-4 mb-4">
+          <h2 class="text-xl font-semibold">Taula de jugadors</h2>
+          <div class="flex gap-2 text-sm">
+            <button id="sortPts" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per PTS</button>
+            <button id="sortMin" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per MIN</button>
+            <button id="sortVal2" class="px-3 py-1 rounded-xl chip hover:bg-white/5">Ordenar per VAL</button>
+          </div>
+        </div>
+        <div class="overflow-auto rounded-2xl border border-slate-700">
+          <table id="dataTable" class="min-w-full text-sm">
+            <thead>
+              <tr class="text-left">
+                <th class="px-3 py-2">Nom</th>
+                <th class="px-3 py-2">Equip</th>
+                <th class="px-3 py-2">PJ</th>
+                <th class="px-3 py-2">MIN</th>
+                <th class="px-3 py-2">MIN/P</th>
+                <th class="px-3 py-2">PTS</th>
+                <th class="px-3 py-2">PTS/P</th>
+                <th class="px-3 py-2">TL A</th>
+                <th class="px-3 py-2">TL CI</th>
+                <th class="px-3 py-2">TL%</th>
+                <th class="px-3 py-2">T2 A</th>
+                <th class="px-3 py-2">T2 CI</th>
+                <th class="px-3 py-2">T2%</th>
+                <th class="px-3 py-2">T3 A</th>
+                <th class="px-3 py-2">T3 CI</th>
+                <th class="px-3 py-2">T3%</th>
+                <th class="px-3 py-2">%GLOBAL</th>
+                <th class="px-3 py-2">VAL</th>
+                <th class="px-3 py-2">PTS/MIN</th>
+                <th class="px-3 py-2">VAL/MIN</th>
+                <th class="px-3 py-2">Volum total (T2+T3+TL)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="hint mt-2">Barra de volum: <span style="color:#60a5fa">T2 CI</span> · <span style="color:#34d399">T3
+            CI</span> · <span style="color:#fbbf24">TL CI</span>.</div>
+      </section>
 
-      <div class="flex gap-2 flex-wrap mb-4">
-        <button id="btnComputeTAGG" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition">🔁 Tornar a
-          calcular quintets</button>
-        <button id="toggleTAGGAdvanced" class="px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-600 transition">⚙️ Mode
-          Avançat (restriccions)</button>
-      </div>
+      <!-- Gràfiques bàsiques -->
+      <section class="grid gap-6 md:grid-cols-2 mb-8">
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Punts totals per jugador</h3><canvas id="chartPts" height="240"></canvas>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Minuts totals per jugador</h3><canvas id="chartMin" height="240"></canvas>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Percentatge T2 (%)</h3><canvas id="chartT2" height="240"></canvas>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Percentatge T3 (%)</h3><canvas id="chartT3" height="240"></canvas>
+        </div>
+        <div class="card rounded-2xl p-5 md:col-span-2">
+          <h3 class="font-semibold mb-3">Composició de tirs (encerts vs intents)</h3><canvas id="chartShotsStack"
+            height="260"></canvas>
+        </div>
+      </section>
 
-      <!-- Panell avançat (desplegable) -->
-      <div id="taggAdvancedPanel" class="hidden bg-[#0f1627] border border-slate-700 p-5 rounded-xl mb-6 space-y-4">
-        <h3 class="text-lg font-semibold mb-3">Paràmetres avançats del sistema TAG+G</h3>
+      <!-- TOPS i Volum -->
+      <section class="grid gap-6 md:grid-cols-2 mb-8">
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — Valoració (FEB)</h3><canvas id="chartTopVal" height="240"></canvas>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — PTS/min</h3><canvas id="chartTopPtsMin" height="240"></canvas>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — VAL/min</h3><canvas id="chartTopValMin" height="240"></canvas>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — % Global</h3><canvas id="chartTopAcc" height="240"></canvas>
+        </div>
 
-        <div class="grid md:grid-cols-3 gap-4">
-          <div>
-            <label class="opacity-80">Mínim tiradors (T3% &gt;=):</label>
-            <div class="flex items-center gap-2 mt-1">
-              <input id="advMinShooters" type="number" value="2" min="0" max="5"
-                class="w-20 bg-transparent border border-slate-600 rounded-xl p-2" />
-              <input id="advMinT3" type="number" value="30" min="0" max="100"
-                class="w-20 bg-transparent border border-slate-600 rounded-xl p-2" /><span>%</span>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">TOP 5 — T2 anotats</h3><canvas id="chartTopT2F" height="240"></canvas>
+          <ol id="rankT2Made" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">TOP 5 — T3 anotats</h3><canvas id="chartTopT3F" height="240"></canvas>
+          <ol id="rankT3Made" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">TOP 5 — TL anotats</h3><canvas id="chartTopTLLF" height="240"></canvas>
+          <ol id="rankTLMade" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+
+        <div class="card rounded-2xl p-5 md:col-span-2">
+          <h3 class="font-semibold mb-3">Volum total de tir (T2 CI + T3 CI + TL CI)</h3><canvas id="chartShotVolume"
+            height="260"></canvas>
+        </div>
+      </section>
+
+      <!-- Rànquings en llista -->
+      <section class="grid gap-6 md:grid-cols-3 mb-12">
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — Punts</h3>
+          <ol id="rankPts" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — Minuts</h3>
+          <ol id="rankMin" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — Tirs totals</h3>
+          <ol id="rankShots" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — T2%</h3>
+          <ol id="rankT2" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — T3%</h3>
+          <ol id="rankT3" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <h3 class="font-semibold mb-3">Top 5 — TL%</h3>
+          <ol id="rankTL" class="list-decimal ml-6 mt-3 space-y-1"></ol>
+        </div>
+      </section>
+
+      <!-- Comparativa i Radar -->
+      <section class="grid gap-6 md:grid-cols-2 mb-12">
+        <div class="card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold">Comparativa Jugador vs Jugador</h3>
+            <div class="text-xs opacity-70">Selecciona dos jugadors</div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mb-3">
+            <select id="cmpA" class="bg-transparent border border-slate-600 rounded-xl p-2"></select>
+            <select id="cmpB" class="bg-transparent border border-slate-600 rounded-xl p-2"></select>
+          </div>
+          <canvas id="chartCompare" height="260"></canvas>
+        </div>
+        <div class="card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold">Radar — Perfil del jugador</h3>
+            <div class="text-xs opacity-70">Escull un jugador</div>
+          </div>
+          <select id="radarPlayer" class="bg-transparent border border-slate-600 rounded-xl p-2 mb-3 w-full"></select>
+          <canvas id="chartRadar" height="260"></canvas>
+        </div>
+      </section>
+
+      <!-- ================== QUINTET PERSONALITZAT (Lineup Builder) ================== -->
+      <section id="customLineup" class="card rounded-2xl p-6 mb-16">
+        <h2 class="text-2xl font-bold mb-4">🛠️ Quintet Personalitzat (Lineup Builder)</h2>
+        <p class="opacity-80 mb-4">Selecciona 5 jugadors (Equip A o B) per veure les estadístiques acumulades del
+          quintet.
+        </p>
+
+        <div class="grid gap-4 md:grid-cols-5 mb-6">
+          <!-- 5 Selectors -->
+          <div><label class="text-xs opacity-60 uppercase">Posició 1</label><select id="slot1"
+              class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+          <div><label class="text-xs opacity-60 uppercase">Posició 2</label><select id="slot2"
+              class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+          <div><label class="text-xs opacity-60 uppercase">Posició 3</label><select id="slot3"
+              class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+          <div><label class="text-xs opacity-60 uppercase">Posició 4</label><select id="slot4"
+              class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+          <div><label class="text-xs opacity-60 uppercase">Posició 5</label><select id="slot5"
+              class="lineup-sel w-full bg-slate-800 border border-slate-600 rounded-xl p-2 mt-1"></select></div>
+        </div>
+
+        <!-- Stats del Quintet -->
+        <div class="grid gap-4 md:grid-cols-4">
+          <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
+            <div class="text-sm opacity-60">Punts Totals</div>
+            <div id="lPts" class="text-xl font-bold text-blue-400">0</div>
+          </div>
+          <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
+            <div class="text-sm opacity-60">% Tir Global (Mitjana)</div>
+            <div id="lAcc" class="text-xl font-bold text-green-400">0%</div>
+          </div>
+          <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
+            <div class="text-sm opacity-60">T3% (Mitjana)</div>
+            <div id="lT3" class="text-xl font-bold text-purple-400">0%</div>
+          </div>
+          <div class="p-4 rounded-xl bg-[#0f1627] border border-slate-700 text-center">
+            <div class="text-sm opacity-60">VAL Total</div>
+            <div id="lVal" class="text-xl font-bold text-yellow-400">0</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================== QUINTETS TAG+G (Opció C: compacte + avançat) ================== -->
+      <section id="taggLineups" class="card rounded-2xl p-6 mb-16">
+        <h2 class="text-2xl font-bold mb-4">🔷 Quintets Òptims TAG+G</h2>
+        <p class="opacity-80 mb-4">Generats automàticament en base al sistema TAG+G i les estadístiques carregades.</p>
+
+        <div class="flex gap-2 flex-wrap mb-4">
+          <button id="btnComputeTAGG" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition">🔁 Tornar a
+            calcular quintets</button>
+          <button id="toggleTAGGAdvanced" class="px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-600 transition">⚙️ Mode
+            Avançat (restriccions)</button>
+        </div>
+
+        <!-- Panell avançat (desplegable) -->
+        <div id="taggAdvancedPanel" class="hidden bg-[#0f1627] border border-slate-700 p-5 rounded-xl mb-6 space-y-4">
+          <h3 class="text-lg font-semibold mb-3">Paràmetres avançats del sistema TAG+G</h3>
+
+          <div class="grid md:grid-cols-3 gap-4">
+            <div>
+              <label class="opacity-80">Mínim tiradors (T3% &gt;=):</label>
+              <div class="flex items-center gap-2 mt-1">
+                <input id="advMinShooters" type="number" value="2" min="0" max="5"
+                  class="w-20 bg-transparent border border-slate-600 rounded-xl p-2" />
+                <input id="advMinT3" type="number" value="30" min="0" max="100"
+                  class="w-20 bg-transparent border border-slate-600 rounded-xl p-2" /><span>%</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="opacity-80">Defensa mínima (STL+BLK):</label>
+              <input id="advMinDefense" type="number" value="2" min="0" max="10"
+                class="mt-1 w-24 bg-transparent border border-slate-600 rounded-xl p-2" />
+            </div>
+
+            <div>
+              <label class="opacity-80">Excloure MIN &lt; 10:</label>
+              <select id="advExcludeLowMIN" class="mt-1 bg-transparent border border-slate-600 rounded-xl p-2 w-full">
+                <option value="yes">Sí</option>
+                <option value="no" selected>No</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="opacity-80">Requereix un generador (PG) amb MIN &gt;= 20?:</label>
+              <select id="advRequirePG" class="mt-1 bg-transparent border border-slate-600 rounded-xl p-2 w-full">
+                <option value="yes">Sí</option>
+                <option value="no" selected>No</option>
+              </select>
+              <div class="hint mt-1">Heurística PG: MIN alts i PTS/MIN ≥ 0.25</div>
             </div>
           </div>
 
-          <div>
-            <label class="opacity-80">Defensa mínima (STL+BLK):</label>
-            <input id="advMinDefense" type="number" value="2" min="0" max="10"
-              class="mt-1 w-24 bg-transparent border border-slate-600 rounded-xl p-2" />
-          </div>
-
-          <div>
-            <label class="opacity-80">Excloure MIN &lt; 10:</label>
-            <select id="advExcludeLowMIN" class="mt-1 bg-transparent border border-slate-600 rounded-xl p-2 w-full">
-              <option value="yes">Sí</option>
-              <option value="no" selected>No</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="opacity-80">Requereix un generador (PG) amb MIN &gt;= 20?:</label>
-            <select id="advRequirePG" class="mt-1 bg-transparent border border-slate-600 rounded-xl p-2 w-full">
-              <option value="yes">Sí</option>
-              <option value="no" selected>No</option>
-            </select>
-            <div class="hint mt-1">Heurística PG: MIN alts i PTS/MIN ≥ 0.25</div>
-          </div>
+          <button id="btnComputeAdvancedTAGG"
+            class="mt-2 px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 transition">
+            🧠 Generar Quintets amb Restriccions
+          </button>
         </div>
 
-        <button id="btnComputeAdvancedTAGG"
-          class="mt-2 px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 transition">
-          🧠 Generar Quintets amb Restriccions
-        </button>
-      </div>
+        <div id="taggResults" class="space-y-6 text-sm"></div>
+      </section>
 
-      <div id="taggResults" class="space-y-6 text-sm"></div>
-    </section>
+    </main>
+    <!-- 🔼🔼 FI DE LA PART 2 — A continuació, PART 3 amb tot el JavaScript i la integració 🔼🔼 -->
+  </div> <!-- End mainContent -->
 
-  </main>
-  <!-- 🔼🔼 FI DE LA PART 2 — A continuació, PART 3 amb tot el JavaScript i la integració 🔼🔼 -->
   <script>
     /* ========= Utils ========= */
     const toNumber = (v) => { if (v === undefined || v === null) return 0; if (typeof v === 'number') return v; const s = String(v).trim().replace('%', '').replace(',', '.'); const n = Number(s); return Number.isFinite(n) ? n : 0; };
@@ -1023,55 +1074,5 @@
       document.getElementById('sortVal').addEventListener('click', () => { rows.sort((a, b) => b['VAL'] - a['VAL']); renderAll(); });
       document.getElementById('sortVal2').addEventListener('click', () => { rows.sort((a, b) => b['VAL'] - a['VAL']); renderAll(); });
 
-      document.getElementById("btnComputeTAGG").addEventListener("click", computeTAGGLineups);
-
-      // Mòdul avançat
-      document.getElementById("toggleTAGGAdvanced").addEventListener("click", () => {
-        el("#taggAdvancedPanel").classList.toggle("hidden");
-      });
-      document.getElementById("btnComputeAdvancedTAGG").addEventListener("click", computeAdvancedTAGG);
-
-      // Selector de comparatives i radar
-      document.addEventListener('change', (e) => {
-        if (e.target && (e.target.id === 'cmpA' || e.target.id === 'cmpB')) renderCompare();
-        if (e.target && e.target.id === 'radarPlayer') renderRadar();
-        if (e.target && e.target.classList.contains('lineup-sel')) calculateLineupStats();
-      });
-
-      // Lineup Builder Init
-      // populateLineupSelectors(); // Moved to init()
-
-
-
-      // Botó per recarregar les dades reals si es vol
-      document.getElementById('loadSample').textContent = "Recarregar Dades Oficials";
-      document.getElementById('loadSample').addEventListener('click', () => {
-        rowsA_master = normalizeRows(realDataA, 'A');
-        rowsB_master = normalizeRows(realDataB, 'B');
-        rebuildAndRender();
-        computeTAGGLineups();
-      });
-    }
-
-    /* ========= Inici ========= */
-    (function init() {
-      try {
-        bindEvents();
-        // Carrega automàticament les dades reals extretes
-        console.log("Loading data...");
-        rowsA_master = normalizeRows(realDataA, 'A');
-        rowsB_master = normalizeRows(realDataB, 'B');
-        console.log("Data normalized", rowsA_master, rowsB_master);
-        rebuildAndRender();
-        computeTAGGLineups();
-        populateLineupSelectors(); // Populate selectors after data load
-        console.log("Dashboard ready");
-      } catch (e) {
-        console.error(e);
-        alert("Error initializing dashboard: " + e.message + "\n" + e.stack);
-      }
-    })();
-  </script>
-</body>
-
-</html>
+      d
+A
