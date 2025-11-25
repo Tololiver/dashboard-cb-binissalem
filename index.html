@@ -281,6 +281,7 @@
           <thead>
             <tr class="text-left">
               <th class="px-3 py-2">Nom</th>
+              <th class="px-3 py-2">Pos</th>
               <th class="px-3 py-2">Equip</th>
               <th class="px-3 py-2">PJ</th>
               <th class="px-3 py-2">MIN</th>
@@ -417,6 +418,18 @@
           </select>
         </div>
         <canvas id="chartRadar" height="260"></canvas>
+      </div>
+    </section>
+
+    <!-- ================== GESTIÓ DE POSICIONS ================== -->
+    <section id="positionManagement" class="card rounded-2xl p-6 mb-16">
+      <h2 class="text-2xl font-bold mb-4">📍 Gestió de Posicions</h2>
+      <p class="opacity-80 mb-4">Assigna una posició (1-5) a cada jugador. Aquesta informació es guardarà al teu
+        navegador.</p>
+
+      <div class="grid gap-4 md:grid-cols-3 lg:grid-cols-4" id="positionEditorContainer">
+        <!-- JS will populate this -->
+        <div class="text-sm opacity-60 italic">Carrega dades per veure els jugadors...</div>
       </div>
     </section>
 
@@ -599,6 +612,7 @@
     let rowsMaster = [];   // Vista (A/B/ALL)
     let rows = [];         // Vista + filtre jugador
     let charts = {};
+    let playerPositions = {}; // { "Nom Jugador": "1", ... }
 
     /* ========= Normalització ========= */
     function parseACI(o, baseKey) {
@@ -710,8 +724,10 @@
         const grad = volGradient(r['T2 CI'], r['T3 CI'], r['TL CI']);
         const volBar = `<div class="volbar"><div style="width:100%;height:100%;background:${grad}"></div></div>
                     <div class="text-xs opacity-70 mt-1">T2:${r['T2 CI']} · T3:${r['T3 CI']} · TL:${r['TL CI']} = <b>${r['VOL_TOT']}</b></div>`;
+        const pos = playerPositions[r.Nom] || '-';
         tr.innerHTML = `
-      <td class="px-3 py-2 whitespace-nowrap">${r.Nom}</td>
+      <td class="px-3 py-2 whitespace-nowrap font-medium text-white">${r.Nom}</td>
+      <td class="px-3 py-2 text-center"><span class="px-2 py-1 rounded bg-slate-700 text-xs">${pos}</span></td>
       <td class="px-3 py-2">${badge(r.Team)}</td>
       <td class="px-3 py-2">${r.PJ}</td>
       <td class="px-3 py-2">${r.MIN}</td>
@@ -1420,6 +1436,73 @@
       document.addEventListener('change', (e) => {
         if (e.target && e.target.id === 'radarPlayer2') renderRadar();
       });
+
+      /* ========= POSITIONS LOGIC ========= */
+      function loadPositions() {
+        try {
+          const stored = localStorage.getItem('cb_binissalem_positions');
+          if (stored) playerPositions = JSON.parse(stored);
+        } catch (e) { console.error("Error loading positions", e); }
+      }
+
+      function savePositions() {
+        localStorage.setItem('cb_binissalem_positions', JSON.stringify(playerPositions));
+        renderAll(); // Re-render table to show new positions
+      }
+
+      function renderPositionEditor() {
+        const container = el('#positionEditorContainer');
+        if (!container) return;
+        
+        // Get all unique players
+        const allPlayers = [...rowsA_master, ...rowsB_master].sort((a, b) => a.Nom.localeCompare(b.Nom));
+        if (!allPlayers.length) {
+          container.innerHTML = '<div class="text-sm opacity-60 italic">Carrega dades per veure els jugadors...</div>';
+          return;
+        }
+
+        // Deduplicate by name
+        const uniqueNames = [...new Set(allPlayers.map(p => p.Nom))];
+
+        container.innerHTML = uniqueNames.map(name => {
+          const currentPos = playerPositions[name] || "";
+          return `
+            <div class="bg-[#0f1627] border border-slate-700 p-3 rounded-xl flex items-center justify-between gap-2">
+              <div class="text-sm truncate" title="${name}">${name}</div>
+              <select class="bg-slate-800 border border-slate-600 rounded-lg text-sm p-1 w-16 pos-selector" data-player="${name}">
+                <option value="" ${currentPos === "" ? "selected" : ""}>-</option>
+                <option value="1" ${currentPos === "1" ? "selected" : ""}>1</option>
+                <option value="2" ${currentPos === "2" ? "selected" : ""}>2</option>
+                <option value="3" ${currentPos === "3" ? "selected" : ""}>3</option>
+                <option value="4" ${currentPos === "4" ? "selected" : ""}>4</option>
+                <option value="5" ${currentPos === "5" ? "selected" : ""}>5</option>
+              </select>
+            </div>
+          `;
+        }).join('');
+
+        // Bind events
+        container.querySelectorAll('.pos-selector').forEach(sel => {
+          sel.addEventListener('change', (e) => {
+            const name = e.target.dataset.player;
+            const val = e.target.value;
+            playerPositions[name] = val;
+            savePositions();
+          });
+        });
+      }
+
+      // Hook into rebuildAndRender to update editor
+      const originalRebuild = rebuildAndRender;
+      rebuildAndRender = function() {
+        originalRebuild();
+        renderPositionEditor();
+      };
+
+      // Init positions
+      loadPositions();
+      // If data already loaded (auto-load), render editor
+      if (rowsMaster.length) renderPositionEditor();
 
     })();
   </script>
