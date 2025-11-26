@@ -433,6 +433,50 @@
       </div>
     </section>
 
+    <!-- ================== DISTRIBUCIÓ DE TIR ================== -->
+    <section id="shotDistribution" class="card rounded-2xl p-6 mb-16">
+      <h2 class="text-2xl font-bold mb-4">🎯 Distribució de Tir</h2>
+      <p class="opacity-80 mb-6">Anàlisi del volum total de tirs i la seva eficiència (Anotats vs Fallats).</p>
+
+      <div class="grid gap-6 md:grid-cols-3">
+        <!-- T2 Ring -->
+        <div class="relative flex flex-col items-center">
+          <h3 class="text-lg font-semibold mb-2 text-blue-400">Tirs de 2 (T2)</h3>
+          <div class="relative w-48 h-48">
+            <canvas id="chartDistT2"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div id="centerT2Pct" class="text-3xl font-bold text-white">0%</div>
+              <div id="centerT2Frac" class="text-sm opacity-70">0/0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- T3 Ring -->
+        <div class="relative flex flex-col items-center">
+          <h3 class="text-lg font-semibold mb-2 text-green-400">Triples (T3)</h3>
+          <div class="relative w-48 h-48">
+            <canvas id="chartDistT3"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div id="centerT3Pct" class="text-3xl font-bold text-white">0%</div>
+              <div id="centerT3Frac" class="text-sm opacity-70">0/0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TL Ring -->
+        <div class="relative flex flex-col items-center">
+          <h3 class="text-lg font-semibold mb-2 text-yellow-400">Tirs Lliures (TL)</h3>
+          <div class="relative w-48 h-48">
+            <canvas id="chartDistTL"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div id="centerTLPct" class="text-3xl font-bold text-white">0%</div>
+              <div id="centerTLFrac" class="text-sm opacity-70">0/0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ================== QUINTET PERSONALITZAT (Lineup Builder) ================== -->
     <section id="customLineup" class="card rounded-2xl p-6 mb-16">
       <h2 class="text-2xl font-bold mb-4">🛠️ Quintet Personalitzat (Lineup Builder)</h2>
@@ -1093,13 +1137,81 @@
       if (tsa > 0) {
         ts = sumPTS / (2 * tsa);
       }
-
       el('#advEFG').textContent = (efg * 100).toFixed(1) + '%';
       el('#advTS').textContent = (ts * 100).toFixed(1) + '%';
     }
 
+    /* ========= SHOT DISTRIBUTION MODULE (3 RINGS) ========= */
+    function renderShotDistribution() {
+      // 1. Calculate Totals
+      let t2_a = 0, t2_ci = 0;
+      let t3_a = 0, t3_ci = 0;
+      let tl_a = 0, tl_ci = 0;
+
+      rows.forEach(r => {
+        t2_a += r['T2 A']; t2_ci += r['T2 CI'];
+        t3_a += r['T3 A']; t3_ci += r['T3 CI'];
+        tl_a += r['TL A']; tl_ci += r['TL CI'];
+      });
+
+      const t2_miss = t2_ci - t2_a;
+      const t3_miss = t3_ci - t3_a;
+      const tl_miss = tl_ci - tl_a;
+
+      // 2. Update Center Text
+      const pct = (a, ci) => ci ? Math.round(a / ci * 100) + '%' : '0%';
+
+      el('#centerT2Pct').textContent = pct(t2_a, t2_ci);
+      el('#centerT2Frac').textContent = `${t2_a}/${t2_ci}`;
+
+      el('#centerT3Pct').textContent = pct(t3_a, t3_ci);
+      el('#centerT3Frac').textContent = `${t3_a}/${t3_ci}`;
+
+      el('#centerTLPct').textContent = pct(tl_a, tl_ci);
+      el('#centerTLFrac').textContent = `${tl_a}/${tl_ci}`;
+
+      // 3. Render Charts
+      const commonDoughnutOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '75%', // Thinner ring
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false } // Disable tooltip as info is in center
+        }
+      };
+
+      const createRing = (id, made, miss, colorMain, colorBg) => {
+        const ctx = document.getElementById(id);
+        if (!ctx) return null;
+        return new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Anotats', 'Fallats'],
+            datasets: [{
+              data: [made, miss],
+              backgroundColor: [colorMain, colorBg],
+              borderWidth: 0,
+              hoverOffset: 0
+            }]
+          },
+          options: commonDoughnutOpts
+        });
+      };
+
+      // Destroy old
+      if (charts.chartDistT2) charts.chartDistT2.destroy();
+      if (charts.chartDistT3) charts.chartDistT3.destroy();
+      if (charts.chartDistTL) charts.chartDistTL.destroy();
+
+      // Create new
+      charts.chartDistT2 = createRing('chartDistT2', t2_a, t2_miss, '#60a5fa', '#1e293b'); // Blue / Dark
+      charts.chartDistT3 = createRing('chartDistT3', t3_a, t3_miss, '#34d399', '#1e293b'); // Green / Dark
+      charts.chartDistTL = createRing('chartDistTL', tl_a, tl_miss, '#fbbf24', '#1e293b'); // Yellow / Dark
+    }
+
     /* ========= Render global ========= */
-    function renderAll() { renderTable(); renderKpis(); renderRanks(); renderShotRanks(); destroyCharts(); renderCharts(); renderAdvancedMetrics(); }
+    function renderAll() { renderTable(); renderKpis(); renderRanks(); renderShotRanks(); destroyCharts(); renderCharts(); renderAdvancedMetrics(); renderShotDistribution(); }
     function rebuildAndRender() { buildRowsMaster(); fillSelectOptions(); rows = [...rowsMaster]; applyFilters(); }
 
     /* ========= Lectura d’arxius ========= */
@@ -1453,7 +1565,7 @@
       function renderPositionEditor() {
         const container = el('#positionEditorContainer');
         if (!container) return;
-        
+
         // Get all unique players
         const allPlayers = [...rowsA_master, ...rowsB_master].sort((a, b) => a.Nom.localeCompare(b.Nom));
         if (!allPlayers.length) {
@@ -1494,7 +1606,7 @@
 
       // Hook into rebuildAndRender to update editor
       const originalRebuild = rebuildAndRender;
-      rebuildAndRender = function() {
+      rebuildAndRender = function () {
         originalRebuild();
         renderPositionEditor();
       };
